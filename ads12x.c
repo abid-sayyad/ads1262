@@ -76,4 +76,27 @@
 #define ADS126x_MASK_STATUS     BIT(2)
 #define ADS126x_MASK_CRC        GENMASK(1, 0)
 
+/* ADS126x_HW_SPECS */
+#define ADS1261_MAX_CHANNELS    1
+#define ADS1263_MAX_CHANNELS    2
+#define ADS126x_BITS_PER_SAMPLE 32
+#define ADS126x_CLK_RATE_HZ     7372800
+#define ADS126x_CLOCKS_TO_USECS(x)  \
+                (DIV_ROUND_UP((x) * MICROHZ_PER_HZ, ADS126x_CLK_RATE_HZ))
 
+/* The Read/Write commands require 4 tCLK to encode and decode, for speeds
+ * 2x the clock rate, these commands would require extra time between the
+ * command byte and the data. A simple way to tacke this issue is by
+ * limiting the SPI bus transfer speed while accessing registers.
+ */
+#define ADS126x_SPI_BUS_SPEED_SLOW  ADS126x_CLK_RATE_HZ
+
+/* For reading and writing we need a buffer of size 3bytes*/
+#define ADS126x_SPI_CMD_BUFFER_SIZE 3
+
+/* Read data buffer size*/
+#define ADS126x_SPI_RDATA_BUFFER_SIZE(n)    (((n) + 1) * 3 + 1)
+#define ADS126x_SPI_RDATA_BUFFER_SIZE_MAX   \
+                ADS126x_SPI_RDATA_BUFFER_SIZE(ADS1263_MAX_CHANNELS)
+
+struct ads1262_private
