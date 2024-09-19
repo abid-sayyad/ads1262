@@ -77,8 +77,7 @@
 #define ADS126x_MASK_CRC        GENMASK(1, 0)
 
 /* ADS126x_HW_SPECS */
-#define ADS1261_MAX_CHANNELS    1
-#define ADS1263_MAX_CHANNELS    2
+#define ADS126x_MAX_CHANNELS    11
 #define ADS126x_BITS_PER_SAMPLE 32
 #define ADS126x_CLK_RATE_HZ     7372800
 #define ADS126x_CLOCKS_TO_USECS(x)  \
@@ -97,6 +96,6 @@
 /* Read data buffer size*/
 #define ADS126x_SPI_RDATA_BUFFER_SIZE(n)    (((n) + 1) * 3 + 1)
 #define ADS126x_SPI_RDATA_BUFFER_SIZE_MAX   \
-                ADS126x_SPI_RDATA_BUFFER_SIZE(ADS1263_MAX_CHANNELS)
+                ADS126x_SPI_RDATA_BUFFER_SIZE(ADS126x_MAX_CHANNELS)
 
 struct ads1262_private
