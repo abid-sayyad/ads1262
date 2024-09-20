@@ -2,8 +2,6 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/slab.h>
 #include <linux/spi/spi>
 #include <linux/cleanup.h>
 #include <linux/bitfield.h>
@@ -98,4 +96,44 @@
 #define ADS126x_SPI_RDATA_BUFFER_SIZE_MAX   \
                 ADS126x_SPI_RDATA_BUFFER_SIZE(ADS126x_MAX_CHANNELS)
 
-struct ads1262_private
+enum {
+        ADS1262,
+        ADS1263,
+};
+
+struct ads1262 {
+        struct spi_device *spi;
+
+        /* Buffer for synchronous SPI exchanges (read/write registers)*/
+        u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+
+        /* Buffer for incoming SPI data*/
+        u8 rx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX;]
+}
+
+/* Four bytes per sample (32 bit precision per channel)*/
+#define ADS126x_OFFSET_INT_RX_BUFFER(index)             (4 * (index) + 4)
+
+#define ADS126x_CHAN(index) {
+        .type = IIO_VOLATAGE,
+        .indexed = 1,
+        .channel = index,
+        .address = ADS126x_OFFSET_INT_RX_BUFFER(index),
+        .info_mask_separate = 
+               BIT(IIO_CHAN_INFO_RAW) |
+               BIT(IIO_CHAN_INFO_SCALE),
+        .info_mask_shared_by_all =
+               BIT(IIO_CHAN_INFO_SMAP_FREQ) |
+               BIT(IIO_CHAN_INFO_OVERSAMPLEING_RATIO),
+        .scan_index = index,
+        .scan_type = {
+                .sign = 's',
+                .realbits = ADS126x_BITS_PER_SAMPLE,
+                .storagebits = 32,
+                .endianness = IIO_CPU,
+        },
+}
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Sayyad Abid");
+MODULE_DESCRIPTION("Device Driver for TI-ADS1262 ADC");
