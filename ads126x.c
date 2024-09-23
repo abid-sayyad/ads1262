@@ -109,12 +109,11 @@ enum {
         ADS1263,
 };
 
-struct ads126x {
+struct ads1262 {
         struct spi_device *spi;
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
-
         /* Buffer for incoming SPI data*/
         u8 rx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX;]
 }
@@ -122,7 +121,7 @@ struct ads126x {
 /* Four bytes per sample (32 bit precision per channel)*/
 #define ADS126x_OFFSET_INT_RX_BUFFER(index)             (4 * (index) + 4)
 
-#define ADS126x_CHAN(index)                                             \
+#define ADS1262_CHAN(index)                                             \
 {                                                                       \
         .type = IIO_VOLATAGE,                                           \
         .indexed = 1,                                                   \
@@ -143,7 +142,7 @@ struct ads126x {
         },
 }
 
-static const struct iio_chan_spec ads126x_channels[] = {
+static const struct iio_chan_spec ads1262_channels[] = {
         ADS126x_CHAN(0),
         ADS126x_CHAN(1),
         ADS126x_CHAN(2),
