@@ -99,8 +99,10 @@
 /* For reading and writing we need a buffer of size 3bytes*/
 #define ADS126x_SPI_CMD_BUFFER_SIZE 3
 
-/* Read data buffer size*/
-#define ADS126x_SPI_RDATA_BUFFER_SIZE(n)    (((n) + 1) * 3 + 1)
+/* Read data buffer size for 
+ * 1 status byte - 4 byte data (32 bit) - 1 byte checksum / CRC
+ */
+#define ADS126x_SPI_RDATA_BUFFER_SIZE(n)    (1 + (n) * 4 + 1)
 #define ADS126x_SPI_RDATA_BUFFER_SIZE_MAX   \
                 ADS126x_SPI_RDATA_BUFFER_SIZE(ADS126x_MAX_CHANNELS)
 
@@ -111,7 +113,11 @@ enum {
 
 struct ads1262 {
         struct spi_device *spi;
-
+        unsigned int id;
+        /* positive analog voltage reference */
+        struct regulator *vref_p;
+        /* negative analog voltage reference */
+        struct regulator *vref_n;
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
         /* Buffer for incoming SPI data*/
@@ -155,6 +161,14 @@ static const struct iio_chan_spec ads1262_channels[] = {
         ADS126x_CHAN(9),
         ADS126x_CHAN(10)
 };
+
+static int __ads1262_start_conv(struct ads1262 *adc,
+                                struct iio_chan_spec const *channel,
+                                void *data, int len)
+{
+        static const u8 ch_to_mux[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        u8 cmd = (ADS126x_CMD_)
+}
 
 static int ads126x_read_raw(struct iio_dev * indio_dev,
                             struct iio_chan_spec const * chan,
