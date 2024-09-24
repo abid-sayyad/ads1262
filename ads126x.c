@@ -106,23 +106,33 @@
 #define ADS126x_SPI_RDATA_BUFFER_SIZE_MAX   \
                 ADS126x_SPI_RDATA_BUFFER_SIZE(ADS126x_MAX_CHANNELS)
 
+/*Single ended Internal tempsensor ADC read*/
+#define ADS126x_DATA_TEMP_SENS  0xBA
+/* Single ended AIN0 ADC read*/
+#define ADS126x_DATA_AIN0_SENS  0x0A
+
 enum {
         ADS1262,
         ADS1263,
 };
 
-struct ads1262 {
+struct ads162 {
         struct spi_device *spi;
-        unsigned int id;
+        struct spi_transfer rdata_xfer;
+        struct spi_message rdata_msg;
         /* positive analog voltage reference */
         struct regulator *vref_p;
         /* negative analog voltage reference */
         struct regulator *vref_n;
+
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
         /* Buffer for incoming SPI data*/
-        u8 rx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX;]
-}
+        u8 rx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX];
+        /* Contains the RDATA command and zeroes to clock out*/
+        u8 tx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX];
+
+};
 
 /* Four bytes per sample (32 bit precision per channel)*/
 #define ADS126x_OFFSET_INT_RX_BUFFER(index)             (4 * (index) + 4)
@@ -162,43 +172,97 @@ static const struct iio_chan_spec ads1262_channels[] = {
         ADS126x_CHAN(10)
 };
 
-static int __ads1262_start_conv(struct ads1262 *adc,
-                                struct iio_chan_spec const *channel,
-                                void *data, int len)
-{
-        static const u8 ch_to_mux[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        u8 cmd = (ADS126x_CMD_)
-}
-
-static int ads126x_read_raw(struct iio_dev * indio_dev,
+static int ads1262_read_raw(struct iio_dev * indio_dev,
                             struct iio_chan_spec const * chan,
-                            int * val, int * val2, long mask){
-        
-        struct ads126x *adc = iio_priv(indio_dev);
+                            int *val, int *val2, long mask)
+{
+        struct ads1262 *spi = iio_priv(indio_dev);
         int ret;
 
         if(mask == IIO_CHAN_INFO_RAW) {
-                ret = read_one(adc, chan->scan_index);
-                if(ret < 0) {
-                        pritnk("dt_iio - Error reading ADC value! \n");
-                        return ret;
-                }
-                *val = ret;
+                spi_w8r8(spi->adc, ADS126x_CMD_RESET);
+                spi_w8r8(spi->adc, (ADS126x_CMD_WREG));
+                ret = spi_w8r8(spi->adc, (ADS126x_CMD_RDATA1))
         }
-        else
-                return -EINVAL;
-        return IIO_VAL_INT;
+}
+
+static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
+{
+        struct spi_transfer xfer = {
+                .tx_buf = priv->cmd_buffer,
+                .rx_buf = priv->cmd_buffer,
+                .len = 1,
+                .speed_hz = ADS126x_CLK_RATE_HZ,
+                .delay = {
+                        .vlaue = 2,
+                        .unit = SPI_DELAY_UNIT_USECS,
+                },
+        };
+
+        priv->cmd_buffer[0] = command;
+
+        return spi_sync_transfer(priv->spi, &xfer, 1);
+}
+
+static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+        struct ads1262 *priv = context;
+        struct spi_transfer reg_write_xfer = {
+                .tx_buf = priv->cmd_buffer,
+                .rx_buf = priv->cmd_buffer,
+                .len = 3,
+                .speed_hz = ADS126x_CLK_RATE_HZ,
+                .delay = {
+                        .value = 2,
+                        .unit = SPI_DELAY_unit_USECS,
+                },
+        };
+
+        priv->cmd_buffer[0] = ADS126x_CMD_WREG | reg;
+        priv->cmd_buffer[1] = 0;
+        priv->cmd_buffer[2] = val;
+
+        return spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
+}
+
+static int ads1262_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+        struct ads1262 *priv = context;
+        struct spi_transfer regg_read_xfer = {
+                .tx_buf = priv->cmd_buffer,
+                .rx_buf = priv->cmd_buffer,
+                .len = 3,
+                .speed_hz = ADS126x_CLK_RATE_HZ,
+                .delay = {
+                        .value = 2,
+                        .unit = SPI_DELAY_UNIT_USECS,
+                },
+        };
+        int ret;
+
+        priv->cmd_buffer[0] = ADS126x_CMD_RREG | reg;
+        priv->cmd_buffer[0] = 0;
+        priv->cmd_buffer[0] = 0;
+
+        ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
+        if (ret)
+                return ret;
+        
+        *val = priv->cmd_buffer[2];
+
+        return 0;
 
 }
 
-static const struct iif_info ads126x_info = {
-        .read_raw = ads126x_read_raw;
+static int ads1262_init(struct iio_dev *indio_dev)
+{
+        struct ads1262 *priv = iio_priv(indio_dev);
+        struct device *dev = &priv->spi->dev;
+        unsigned int val;
+        int ret;
+
+        ret = ads1262_reg_write
 }
-
-/* Probe and remove function declaration */
-static int ads126x_probe(struct spi_device *adc);
-static int ads126x_remove(struct spi_device *adc);
-
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sayyad Abid <sayyad.abid16@gmail.com>");
