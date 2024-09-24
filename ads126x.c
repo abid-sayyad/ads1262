@@ -59,22 +59,6 @@
 #define ADS126x_REG_ADC2FSC0    0x19 
 #define ADS126x_REG_ADC2FSC1    0x1A
 
-/* ADS126x_REG_ID */
-#define ADS126x_MASK_DEVICE_ID  GENMASK(7, 5)
-#define ADS126x_MASK_REV_ID     GENMASK(4, 0)
-#define ADS126X_ID_ADS1262      0x00
-#define ADS126X_ID_ADS1263      0x20
-
-/* ADS126x_POWER_ID */
-#define ADS126x_MASK_RESET      BIT(4)
-#define ADS126x_MASK_VBIAS      BIT(1)
-#define ADS126x_MASK_INTREF     BIT(0) 
-
-/* ADS126x_INTERFACE */
-#define ADS126x_MASK_TIMEOUT    BIT(3)
-#define ADS126x_MASK_STATUS     BIT(2)
-#define ADS126x_MASK_CRC        GENMASK(1, 0)
-
 /* ADS126x_HW_SPECS */
 #define ADS126x_MAX_CHANNELS    11
 #define ADS126x_BITS_PER_SAMPLE 32
@@ -120,10 +104,6 @@ struct ads162 {
         struct spi_device *spi;
         struct spi_transfer rdata_xfer;
         struct spi_message rdata_msg;
-        /* positive analog voltage reference */
-        struct regulator *vref_p;
-        /* negative analog voltage reference */
-        struct regulator *vref_n;
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
@@ -179,6 +159,8 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
         struct ads1262 *spi = iio_priv(indio_dev);
         int ret;
 
+        ret = ads1262_init();
+
         if(mask == IIO_CHAN_INFO_RAW) {
                 spi_w8r8(spi->adc, ADS126x_CMD_RESET);
                 spi_w8r8(spi->adc, (ADS126x_CMD_WREG));
@@ -186,6 +168,12 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
         }
 }
 
+static int ads1262_write_raw(struct iio_dev * indio_dev,
+                             struct iio_can_spec const *chan,
+                             itn val, int val2, long info)
+{
+        return 0;
+}
 static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
 {
         struct spi_transfer xfer = {
@@ -241,8 +229,8 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int *val)
         int ret;
 
         priv->cmd_buffer[0] = ADS126x_CMD_RREG | reg;
-        priv->cmd_buffer[0] = 0;
-        priv->cmd_buffer[0] = 0;
+        priv->cmd_buffer[1] = 0;
+        priv->cmd_buffer[2] = 0;
 
         ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
         if (ret)
@@ -261,8 +249,53 @@ static int ads1262_init(struct iio_dev *indio_dev)
         unsigned int val;
         int ret;
 
-        ret = ads1262_reg_write
+        ret = ads1262_write_cmd(priv, ADS126x_CMD_RESET);
+        if(ret != 0)
+                kprintf("There is something wrong with the deviec %x\n", ret);
+        
+        /* Setting up the MUX to read the internal temperature sensor*/
+        ads1262_reg_write(priv, ADS126x_REG_INPMUX, ADS126x_DATA_TEMP_SENS);
+        
+        ret = ads1262_reg_read(priv, ADS126x_CMD_RREG, ADS126x_REG_INPMUX);
+        if (!(priv->cmd_buffer[2] & ADS126x_DATA_TEMP_SENS))
+                krpintf("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
+        
+        /* Starting the ADC conversions*/
+        ret = ads1262_write_cmd(priv, ADS126x_CMD_START1);
+
 }
+
+static const struct iio_info ads1262_info = {
+        .read_raw = ads1262_read_raw,
+        .write_raw = &ads1262_write_raw,
+};
+
+static int ads1262_probe(struct spi_device *spi)
+{
+        return 0;
+}
+
+static const struct spi_device_id ads1262_id_table[] = {
+        { "ad1262", 0 },
+        {}
+};
+MODULE_DEVICE_TABLE(spi, ads1262_id_table);
+
+staic const struct of_device_id ads1262_of_match[] = {
+        { .compatible = "ti,ads1262"},
+        {},
+};
+MODULE_DEVICE_TABLE(of, ads1262_of_match);
+
+static struct spi_driver ads1262_driver = {
+        .driver = {
+                .name = "ads1262",
+                .of_match_table = ads1262_of_match,
+        },
+        .proble = ads1262_probe,
+        .id_table = ads1262_id_table,
+};
+module_spi_driver(ads1262_driver)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sayyad Abid <sayyad.abid16@gmail.com>");
