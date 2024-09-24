@@ -126,9 +126,6 @@ struct ads162 {
         .info_mask_separate =                                           \
                BIT(IIO_CHAN_INFO_RAW) |                                 \
                BIT(IIO_CHAN_INFO_SCALE),                                \
-        .info_mask_shared_by_all =                                      \
-               BIT(IIO_CHAN_INFO_SMAP_FREQ) |                           \
-               BIT(IIO_CHAN_INFO_OVERSAMPLEING_RATIO),                  \
         .scan_index = index,                                            \
         .scan_type = {                                                  \
                 .sign = 's',                                            \
