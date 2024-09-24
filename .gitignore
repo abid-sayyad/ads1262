@@ -36,3 +36,6 @@
 ehthumbs.db
 Thumbs.db
 12138_reference.c
+.vscode
+.gitignore
+ads1262.c
