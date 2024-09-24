@@ -202,7 +202,7 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
                 .speed_hz = ADS126x_CLK_RATE_HZ,
                 .delay = {
                         .value = 2,
-                        .unit = SPI_DELAY_unit_USECS,
+                        .unit = SPI_DELAY_UNIT_USECS,
                 },
         };
 
