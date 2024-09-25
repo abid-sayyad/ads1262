@@ -86,7 +86,7 @@
 /* Read data buffer size for 
  * 1 status byte - 4 byte data (32 bit) - 1 byte checksum / CRC
  */
-#define ADS126x_SPI_RDATA_BUFFER_SIZE(n)    (1 + (n) * 4 + 1)
+#define ADS126x_SPI_RDATA_BUFFER_SIZE(n)    (1 + (n) + 1)
 #define ADS126x_SPI_RDATA_BUFFER_SIZE_MAX   \
                 ADS126x_SPI_RDATA_BUFFER_SIZE(ADS126x_MAX_CHANNELS)
 
@@ -102,15 +102,13 @@ enum {
 
 struct ads162 {
         struct spi_device *spi;
-        struct spi_transfer rdata_xfer;
-        struct spi_message rdata_msg;
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
-        u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+        u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE];
         /* Buffer for incoming SPI data*/
-        u8 rx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX];
-        /* Contains the RDATA command and zeroes to clock out*/
-        u8 tx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX];
+        __be32 rx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX] __aligned(IIO_DMA_MINALIGN);
+        // /* Contains the RDATA command and zeroes to clock out*/
+        // u8 tx_buffer[ADS126x_SPI_RDATA_BUFFER_SIZE_MAX];
 
 };
 
@@ -158,25 +156,40 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
 
         ret = ads1262_init();
 
-        if(mask == IIO_CHAN_INFO_RAW) {
-                spi_w8r8(spi->adc, ADS126x_CMD_RESET);
-                spi_w8r8(spi->adc, (ADS126x_CMD_WREG));
-                ret = spi_w8r8(spi->adc, (ADS126x_CMD_RDATA1))
+        switch (mask) {
+        case IIO_CHAN_INFO_RAW:
+                ret = ads1262_write_cmd(spi, ADS126x_CMD_RDATA1);
+                if(ret !=0 ) {
+                        printk("dt-iio - Error reading ADC value!\n");
+                        return ret;
+                }
+                *val = spi->rx_buffer[1];
+                return IIO_VAL_INT;
+        default:
+                break;
         }
+        return -EINVAL;
 }
 
-static int ads1262_write_raw(struct iio_dev * indio_dev,
-                             struct iio_can_spec const *chan,
-                             itn val, int val2, long info)
-{
-        return 0;
-}
+// static int ads1262_write_raw(struct iio_dev * indio_dev,
+//                              struct iio_can_spec const *chan,
+//                              itn val, int val2, long info)
+// {
+//         struct ads1262 *spi = iio_priv(indio_dev);
+
+//         switch (mask) {
+//         case IIO_CHAN_INFO_SAMP_FREQ:
+//                 return ads1262_set_samp_freq(priv, val);
+//         default:
+//                 return -EINVAL;
+//         }
+// }
 static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
 {
         struct spi_transfer xfer = {
-                .tx_buf = priv->cmd_buffer,
-                .rx_buf = priv->cmd_buffer,
-                .len = 1,
+                .tx_buf = priv->rx_buffer,
+                .rx_buf = priv->rx_buffer,
+                .len = ADS126x_SPI_RDATA_BUFFER_SIZE_MAX,
                 .speed_hz = ADS126x_CLK_RATE_HZ,
                 .delay = {
                         .vlaue = 2,
@@ -251,9 +264,9 @@ static int ads1262_init(struct iio_dev *indio_dev)
                 printf("There is something wrong with the deviec %x\n", ret);
         
         /* Setting up the MUX to read the internal temperature sensor*/
-        ads1262_reg_write(priv, ADS126x_REG_INPMUX, ADS126x_DATA_TEMP_SENS);
+        ads1262_reg_write(priv, ADS126x_REG_INPMUX, ADS126x_DATA_TEMP_SENS, val);
         
-        ret = ads1262_reg_read(priv, ADS126x_CMD_RREG, ADS126x_REG_INPMUX);
+        ret = ads1262_reg_read(priv, ADS126x_CMD_RREG, ADS126x_REG_INPMUX, val);
         if (!(priv->cmd_buffer[2] & ADS126x_DATA_TEMP_SENS))
                 printf("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
         
@@ -264,7 +277,7 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
 static const struct iio_info ads1262_info = {
         .read_raw = ads1262_read_raw,
-        .write_raw = &ads1262_write_raw,
+        // .write_raw = &ads1262_write_raw,
 };
 
 static int ads1262_probe(struct spi_device *spi)
