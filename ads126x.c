@@ -102,6 +102,7 @@ enum {
 
 struct ads162 {
         struct spi_device *spi;
+        spi->mode = SPI_MODE_1;
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         u8 cmd_buffer[ADS126x_SPI_CMD_BUFFER_SIZE];
