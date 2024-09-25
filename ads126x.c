@@ -248,14 +248,14 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
         ret = ads1262_write_cmd(priv, ADS126x_CMD_RESET);
         if(ret != 0)
-                kprintf("There is something wrong with the deviec %x\n", ret);
+                printf("There is something wrong with the deviec %x\n", ret);
         
         /* Setting up the MUX to read the internal temperature sensor*/
         ads1262_reg_write(priv, ADS126x_REG_INPMUX, ADS126x_DATA_TEMP_SENS);
         
         ret = ads1262_reg_read(priv, ADS126x_CMD_RREG, ADS126x_REG_INPMUX);
         if (!(priv->cmd_buffer[2] & ADS126x_DATA_TEMP_SENS))
-                krpintf("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
+                printf("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
         
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS126x_CMD_START1);
