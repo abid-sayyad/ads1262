@@ -4,9 +4,9 @@ all: module dt
 	echo Building Devicetree Overlay and kernel module
 
 module:
-	make -C ~/linux/ M=$(PWD) modules
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 dt: ads1262overlay.dts
 	dtc -@ -I dts -O dtb -o ads1262overlay.dtbo ads1262overlay.dts
 clean:
-	make -C /linux/ M=$(PWD) clean
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 	rm -rf ads1262overlay.dtbo
