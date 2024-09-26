@@ -3,7 +3,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <math.h>
 
 #include <linux/iio.h>
 #include <linux/iio/sysfs.h>
@@ -55,7 +54,7 @@ enum {
         ADS1263,
 };
 
-struct ads162 {
+struct ads1262 {
         struct spi_device *spi;
         spi->mode = SPI_MODE_1;
 
@@ -72,33 +71,6 @@ static const struct iio_chan_spec ads1262_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 	}
 };
-
-static int ads1262_read_raw(struct iio_dev * indio_dev,
-                            struct iio_chan_spec const * chan,
-                            int *val, int *val2, long mask)
-{
-        struct ads1262 *spi = iio_priv(indio_dev);
-        int ret;
-
-        ret = ads1262_init();
-
-        switch (mask) {
-        case IIO_CHAN_INFO_RAW:
-                ret = ads1262_write_cmd(spi, ADS1262_CMD_RDATA1);
-                if(ret !=0 ) {
-                        printk("dt-iio - Error reading ADC value!\n");
-                        return ret;
-                }
-                int32_t data;
-                data = spi->rx_buffer[1] | spi->rx_buffer[2] |
-                        spi->rx_buffer[3] | spi->rx_buffer[4];
-                *val = (int) data
-                return IIO_VAL_INT;
-        default:
-                break;
-        }
-        return -EINVAL;
-}
 
 static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
 {
@@ -189,6 +161,34 @@ static int ads1262_init(struct iio_dev *indio_dev)
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
 
+}
+
+
+static int ads1262_read_raw(struct iio_dev * indio_dev,
+                            struct iio_chan_spec const * chan,
+                            int *val, int *val2, long mask)
+{
+        struct ads1262 *spi = iio_priv(indio_dev);
+        int ret;
+
+        ret = ads1262_init();
+
+        switch (mask) {
+        case IIO_CHAN_INFO_RAW:
+                ret = ads1262_write_cmd(spi, ADS1262_CMD_RDATA1);
+                if(ret !=0 ) {
+                        printk("dt-iio - Error reading ADC value!\n");
+                        return ret;
+                }
+                int32_t data;
+                data = spi->rx_buffer[1] | spi->rx_buffer[2] |
+                        spi->rx_buffer[3] | spi->rx_buffer[4];
+                *val = (int) data
+                return IIO_VAL_INT;
+        default:
+                break;
+        }
+        return -EINVAL;
 }
 
 static const struct iio_info ads1262_info = {
