@@ -7,6 +7,7 @@
 
 #include <linux/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 
 #include <asm/unaligned.h>
@@ -61,7 +62,7 @@ struct ads162 {
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
         /* Buffer for incoming SPI data*/
-        u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE_MAX] __aligned(IIO_DMA_MINALIGN);
+        u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 
 };
 
@@ -239,7 +240,7 @@ static struct spi_driver ads1262_driver = {
                 .name = "ads1262",
                 .of_match_table = ads1262_of_match,
         },
-        .proble = ads1262_probe,
+        .probe = ads1262_probe,
         .id_table = ads1262_id_table,
 };
 module_spi_driver(ads1262_driver)
