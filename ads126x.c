@@ -57,6 +57,7 @@ struct ads1262 {
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         uint8_t cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
+	uint8_t cmd_buffer_rx[ADS1262_SPI_CMD_BUFFER_SIZE];
         /* Buffer for incoming SPI data*/
         uint8_t rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 
@@ -77,14 +78,17 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
                 .len = ADS1262_SPI_RDATA_BUFFER_SIZE,
                 .speed_hz = ADS1262_CLK_RATE_HZ,
                 .delay = {
-                        .value = 2,
+                        .value = 5,
                         .unit = SPI_DELAY_UNIT_USECS,
                 },
         };
 
         priv->cmd_buffer[0] = command;
+	printk("Writing commad %d", priv->cmd_buffer[0]);
 
-        return spi_sync_transfer(priv->spi, &xfer, 1);
+        int ret = spi_sync_transfer(priv->spi, &xfer, 1);
+	printk("write_cmd return value %d", ret);
+	return ret;
 }
 
 static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
@@ -96,7 +100,7 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
                 .len = 3,
                 .speed_hz = ADS1262_CLK_RATE_HZ,
                 .delay = {
-                        .value = 2,
+                        .value = 5,
                         .unit = SPI_DELAY_UNIT_USECS,
                 },
         };
@@ -104,8 +108,11 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = val;
-
-        return spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
+	printk(" sending command : %d %d %d",priv->cmd_buffer[0],
+			priv->cmd_buffer[1], priv->cmd_buffer[2]);
+        int ret = spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
+	printk("reg_write ret value %d", ret);
+	return ret;
 }
 
 static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
@@ -117,17 +124,21 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
                 .len = 3,
                 .speed_hz = ADS1262_CLK_RATE_HZ,
                 .delay = {
-                        .value = 2,
+                        .value = 5,
                         .unit = SPI_DELAY_UNIT_USECS,
                 },
         };
         int ret;
 
-        priv->cmd_buffer[0] = ADS1262_CMD_RREG | reg;
+        priv->cmd_buffer[0] = ADS1262_CMD_RREG | val;
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = 0;
-
-        ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
+	
+	printk("before reading check %d", priv->cmd_buffer[0]);
+        //ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
+	ret = spi_write_then_read(priv->spi, priv->cmd_buffer, 3, &priv->cmd_buffer, 3);
+	printk(" reading command : %d %d %d",priv->cmd_buffer[0],
+                        priv->cmd_buffer[1], priv->cmd_buffer[2]);
         if (ret)
                 return ret;
         
@@ -145,19 +156,22 @@ static int ads1262_init(struct iio_dev *indio_dev)
         int ret;
 
         ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
+	printk("RESET command sent from the init function");
+	msleep(10);
         if(ret != 0)
                 printk("There is something wrong with the deviec %x\n", ret);
         
         /* Setting up the MUX to read the internal temperature sensor*/
         ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
-        
+        printk("INPUT MUX set to %d", ADS1262_DATA_TEMP_SENS);
         ret = ads1262_reg_read(priv, ADS1262_CMD_RREG, ADS1262_REG_INPMUX);
+	printk("Reading UNPMUX register %d", priv->cmd_buffer[2]);
         if (!(priv->cmd_buffer[2] & ADS1262_DATA_TEMP_SENS))
                 printk("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
         
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
-
+	printk("sent START1 command from init function");
         return ret;
 }
 
@@ -226,13 +240,13 @@ static int ads1262_probe(struct spi_device *spi)
 }
 
 static struct spi_device_id ads1262_id_table[] = {
-        { "ad1262", 0 },
+        { "ads1262", 0 },
         {}
 };
 MODULE_DEVICE_TABLE(spi, ads1262_id_table);
 
 static const struct of_device_id ads1262_of_match[] = {
-        { .compatible = "ti,ads1262"},
+        { .compatible = "ads1262"},
         {},
 };
 MODULE_DEVICE_TABLE(of, ads1262_of_match);
