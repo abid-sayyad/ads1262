@@ -86,32 +86,5 @@ examples:
           reg = <0>;
           diff-channels = <0 1>;
         };
-        channel@2 {
-          reg = <2>;
-        };
-        channel@3 {
-          reg = <3>;
-        };
-        channel@4 {
-          reg = <4>;
-        };
-        channel@5 {
-          reg = <5>;
-        };
-        channel@6 {
-          reg = <6>;
-        };
-        channel@7 {
-          reg = <7>;
-        };
-        channel@7 {
-          reg = <8>;
-        };
-        channel@9 {
-          reg = <9>;
-        };
-        channel@10 {
-          reg = <10>;
-        };
       };
     };
