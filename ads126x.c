@@ -57,7 +57,7 @@ struct ads1262 {
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         uint8_t cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
-	uint8_t cmd_buffer_rx[ADS1262_SPI_CMD_BUFFER_SIZE];
+
         /* Buffer for incoming SPI data*/
         uint8_t rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 
@@ -239,8 +239,13 @@ static int ads1262_probe(struct spi_device *spi)
         return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
+<<<<<<< HEAD
 static struct spi_device_id ads1262_id_table[] = {
         { "ads1262", 0 },
+=======
+static const struct spi_device_id ads1262_id_table[] = {
+        { "ti,ad1262", 0 },
+>>>>>>> refs/remotes/origin/main
         {}
 };
 MODULE_DEVICE_TABLE(spi, ads1262_id_table);
