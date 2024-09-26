@@ -56,7 +56,6 @@ enum {
 
 struct ads1262 {
         struct spi_device *spi;
-        spi->mode = SPI_MODE_1;
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         uint8_t cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
@@ -149,14 +148,14 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
         ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
         if(ret != 0)
-                printf("There is something wrong with the deviec %x\n", ret);
+                printk("There is something wrong with the deviec %x\n", ret);
         
         /* Setting up the MUX to read the internal temperature sensor*/
         ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
         
         ret = ads1262_reg_read(priv, ADS1262_CMD_RREG, ADS1262_REG_INPMUX);
         if (!(priv->cmd_buffer[2] & ADS1262_DATA_TEMP_SENS))
-                printf("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
+                printk("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
         
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
@@ -207,6 +206,10 @@ static int ads1262_probe(struct spi_device *spi)
                 return -ENOMEM;
         adc = iio_priv(indio_dev);
         adc->spi = spi;
+
+        spi->mode = SPI_MODE_1;
+
+        spi->max_speed_hz = ADS1262_SPI_BUS_SPEED_SLOW;
 
         spi_set_drvdata(spi, indio_dev);
 
