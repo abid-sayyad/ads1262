@@ -1,10 +1,12 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 
-#include <linux/iio.h>
+#include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -227,13 +229,13 @@ static int ads1262_probe(struct spi_device *spi)
         return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
-static const struct spi_device_id ads1262_id_table[] = {
+static struct spi_device_id ads1262_id_table[] = {
         { "ad1262", 0 },
         {}
 };
 MODULE_DEVICE_TABLE(spi, ads1262_id_table);
 
-staic const struct of_device_id ads1262_of_match[] = {
+static const struct of_device_id ads1262_of_match[] = {
         { .compatible = "ti,ads1262"},
         {},
 };
