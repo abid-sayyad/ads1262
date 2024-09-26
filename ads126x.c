@@ -110,7 +110,7 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
         return spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
 }
 
-static int ads1262_reg_read(void *context, unsigned int reg, unsigned int *val)
+static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
 {
         struct ads1262 *priv = context;
         struct spi_transfer reg_read_xfer = {
