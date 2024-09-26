@@ -283,7 +283,30 @@ static const struct iio_info ads1262_info = {
 
 static int ads1262_probe(struct spi_device *spi)
 {
-        return 0;
+        struct ads1262 *adc;
+        struct iio_dev *indio_dev;
+        int ret;
+
+        indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
+        if(!indio_dedv)
+                return -ENOMEM;
+        adc = iio_priv(indio_dev);
+        adc->spi = spi;
+
+        spi_set_drvdata(spi, indio_dev);
+
+        indio_dev->dev.parent = &spi->dev;
+        indio_dev->name = spi_get_device_id(spi)->name;
+        indio_dev->modes = INDIO_DIRECT_MODE;
+        indio_dev->channel = ads1262_channels;
+        indio_dev->num_channels = ARRAY_SIZE(ads1262_channels);
+        indio_dev->info = &ads1262_info;
+
+        ret = ads1262_init();
+        if(ret)
+                return ret;
+
+        return devm_iio_device_register(&adc->dev, indio_dev);
 }
 
 static const struct spi_device_id ads1262_id_table[] = {
