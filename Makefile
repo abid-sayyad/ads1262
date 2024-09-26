@@ -1,1 +1,1 @@
-obj-$(CONFIG_ADS1262) += ads1262.o
+obj-$(CONFIG_ADS1262) += ads126x.o
