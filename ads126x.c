@@ -171,7 +171,7 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
         struct ads1262 *spi = iio_priv(indio_dev);
         int ret;
 
-        ret = ads1262_init(spi);
+        ret = ads1262_init(indio_dev);
 
         switch (mask) {
         case IIO_CHAN_INFO_RAW:
@@ -220,7 +220,7 @@ static int ads1262_probe(struct spi_device *spi)
         indio_dev->num_channels = ARRAY_SIZE(ads1262_channels);
         indio_dev->info = &ads1262_info;
 
-        ret = ads1262_init(spi);
+        ret = ads1262_init(indio_dev);
         if(ret)
                 return ret;
 
