@@ -3,7 +3,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <stdio.h>
 
 #include <linux/iio.h>
 #include <linux/iio/sysfs.h>
@@ -60,9 +59,9 @@ struct ads1262 {
         spi->mode = SPI_MODE_1;
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
-        u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
+        uint8_t cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
         /* Buffer for incoming SPI data*/
-        u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+        uint8_t rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 
 };
 
