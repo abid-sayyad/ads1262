@@ -2,7 +2,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/spi/spi>
+#include <linux/spi/spi.h>
 #include <math.h>
 
 #include <linux/iio.h>
