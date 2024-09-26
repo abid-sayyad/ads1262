@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <stdio.h>
 
 #include <linux/iio.h>
 #include <linux/iio/sysfs.h>
@@ -77,10 +78,10 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
         struct spi_transfer xfer = {
                 .tx_buf = priv->rx_buffer,
                 .rx_buf = priv->rx_buffer,
-                .len = ADS1262_SPI_RDATA_BUFFER_SIZE_MAX,
+                .len = ADS1262_SPI_RDATA_BUFFER_SIZE,
                 .speed_hz = ADS1262_CLK_RATE_HZ,
                 .delay = {
-                        .vlaue = 2,
+                        .value = 2,
                         .unit = SPI_DELAY_UNIT_USECS,
                 },
         };
@@ -114,7 +115,7 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
 static int ads1262_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
         struct ads1262 *priv = context;
-        struct spi_transfer regg_read_xfer = {
+        struct spi_transfer reg_read_xfer = {
                 .tx_buf = priv->cmd_buffer,
                 .rx_buf = priv->cmd_buffer,
                 .len = 3,
@@ -152,15 +153,16 @@ static int ads1262_init(struct iio_dev *indio_dev)
                 printf("There is something wrong with the deviec %x\n", ret);
         
         /* Setting up the MUX to read the internal temperature sensor*/
-        ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS, val);
+        ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
         
-        ret = ads1262_reg_read(priv, ADS1262_CMD_RREG, ADS1262_REG_INPMUX, val);
+        ret = ads1262_reg_read(priv, ADS1262_CMD_RREG, ADS1262_REG_INPMUX);
         if (!(priv->cmd_buffer[2] & ADS1262_DATA_TEMP_SENS))
                 printf("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
         
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
 
+        return ret;
 }
 
 
@@ -171,7 +173,7 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
         struct ads1262 *spi = iio_priv(indio_dev);
         int ret;
 
-        ret = ads1262_init();
+        ret = ads1262_init(spi);
 
         switch (mask) {
         case IIO_CHAN_INFO_RAW:
@@ -183,7 +185,7 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
                 int32_t data;
                 data = spi->rx_buffer[1] | spi->rx_buffer[2] |
                         spi->rx_buffer[3] | spi->rx_buffer[4];
-                *val = (int) data
+                *val = (int) data;
                 return IIO_VAL_INT;
         default:
                 break;
@@ -202,7 +204,7 @@ static int ads1262_probe(struct spi_device *spi)
         int ret;
 
         indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
-        if(!indio_dedv)
+        if(!indio_dev)
                 return -ENOMEM;
         adc = iio_priv(indio_dev);
         adc->spi = spi;
@@ -212,11 +214,11 @@ static int ads1262_probe(struct spi_device *spi)
         indio_dev->dev.parent = &spi->dev;
         indio_dev->name = spi_get_device_id(spi)->name;
         indio_dev->modes = INDIO_DIRECT_MODE;
-        indio_dev->channel = ads1262_channels;
+        indio_dev->channels = ads1262_channels;
         indio_dev->num_channels = ARRAY_SIZE(ads1262_channels);
         indio_dev->info = &ads1262_info;
 
-        ret = ads1262_init();
+        ret = ads1262_init(spi);
         if(ret)
                 return ret;
 
