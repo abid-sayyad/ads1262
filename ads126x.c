@@ -5,6 +5,7 @@
 #include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <linux/init.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -50,11 +51,6 @@
 #define ADS1262_DATA_TEMP_SENS  0xBA
 /* Single ended AIN0 ADC read*/
 #define ADS1262_DATA_AIN0_SENS  0x0A
-
-enum {
-        ADS1262,
-        ADS1263,
-};
 
 struct ads1262 {
         struct spi_device *spi;
