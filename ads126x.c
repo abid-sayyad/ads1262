@@ -133,7 +133,7 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
         if (ret)
                 return ret;
         
-        *val = priv->cmd_buffer[2];
+        val = priv->cmd_buffer[2];
 
         return 0;
 
