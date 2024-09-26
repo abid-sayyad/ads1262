@@ -224,7 +224,7 @@ static int ads1262_probe(struct spi_device *spi)
         if(ret)
                 return ret;
 
-        return devm_iio_device_register(&adc->dev, indio_dev);
+        return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ads1262_id_table[] = {
