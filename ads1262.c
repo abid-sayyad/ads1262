@@ -112,6 +112,7 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
 
 static int ads1262_reg_read(void *context, unsigned int reg)
 {
+        unsigned int val;
         struct ads1262 *priv = context;
         struct spi_transfer reg_read_xfer = {
                 .tx_buf = priv->cmd_buffer,
@@ -150,7 +151,7 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
         /* Setting up the MUX to read the internal temperature sensor*/
         ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
-        ret = ads1262_reg_read(priv, ADS1262_CMD_RREG, ADS1262_REG_INPMUX);
+        ret = ads1262_reg_read(priv, ADS1262_REG_INPMUX);
 
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
@@ -217,7 +218,7 @@ static int ads1262_probe(struct spi_device *spi)
         indio_dev->info = &ads1262_info;
 
         ret = ads1262_reg_read(adc, ADS1262_REG_ID);
-        if(!(adc->rx_buffer[2] & ADS1262_REG_ID))
+        if(!(&adc->rx_buffer[2] && ADS1262_REG_ID))
                 dev_err_probe(&spi->dev, "Wrong device ID 0x%x\n",
                                 adc->rx_buffer[2]);
         ret = ads1262_init(indio_dev);
