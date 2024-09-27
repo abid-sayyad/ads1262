@@ -9,6 +9,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 
 #include <asm/unaligned.h>
@@ -19,6 +20,7 @@
 #define ADS1262_CMD_RDATA1      0x12
 #define ADS1262_CMD_RREG        0x20
 #define ADS1262_CMD_WREG        0x40
+#define ADS1262_CMD_STOP1       0x0A
 
 /* Registers */
 #define ADS1262_REG_ID          0x00
@@ -41,7 +43,7 @@
 /* For reading and writing we need a buffer of size 3bytes*/
 #define ADS1262_SPI_CMD_BUFFER_SIZE 3
 
-/* Read data buffer size for 
+/* Read data buffer size for
  * 1 status byte - 4 byte data (32 bit) - 1 byte checksum / CRC
  */
 #define ADS1262_SPI_RDATA_BUFFER_SIZE 6
@@ -56,17 +58,16 @@ struct ads1262 {
 
         /* Buffer for synchronous SPI exchanges (read/write registers)*/
         uint8_t cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
-
         /* Buffer for incoming SPI data*/
         uint8_t rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 
 };
 
 static const struct iio_chan_spec ads1262_channels[] = {
-	{
-		.type = IIO_VOLTAGE,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-	}
+        {
+                .type = IIO_VOLTAGE,
+                .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+        }
 };
 
 static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
@@ -83,11 +84,11 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
         };
 
         priv->rx_buffer[0] = command;
-
-	printk("Writing commad %d to ADS1262", priv->rx_buffer[0]);
+        printk("Writing commad %d", priv->rx_buffer[0]);
 
         int ret = spi_sync_transfer(priv->spi, &xfer, 1);
-	return ret;
+        printk("write_cmd return value %d", ret);
+        return ret;
 }
 
 static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
@@ -107,11 +108,11 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = val;
-
-	printk(" Writing %d to %d register",priv->cmd_buffer[2], reg);
+        printk(" sending command : %d %d %d",priv->cmd_buffer[0],
+                        priv->cmd_buffer[1], priv->cmd_buffer[2]);
         int ret = spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
-
-	return ret;
+        printk("reg_write ret value %d", ret);
+        return ret;
 }
 
 static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
@@ -132,13 +133,13 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[0] = ADS1262_CMD_RREG | val;
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = 0;
-	
-	ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
 
-	printk("Reading %d register : %d",val, priv->cmd_buffer[2]);
+        ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
+        printk(" reading register : %d %d %d",priv->cmd_buffer[0],
+                        priv->cmd_buffer[1], priv->cmd_buffer[2]);
         if (ret)
                 return ret;
-        
+
         val = priv->cmd_buffer[2];
 
         return 0;
@@ -148,23 +149,26 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
 static int ads1262_init(struct iio_dev *indio_dev)
 {
         struct ads1262 *priv = iio_priv(indio_dev);
+       // struct device *dev = &priv->spi->dev;
         int ret;
 
         ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
-	printk("Resetting the device...");
+        printk("RESET command sent from the init function");
         msleep(10);
         if(ret != 0)
                 printk("There is something wrong with the deviec %x\n", ret);
-        
+
         /* Setting up the MUX to read the internal temperature sensor*/
         ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
+        printk("INPUT MUX set to %d", ADS1262_DATA_TEMP_SENS);
         ret = ads1262_reg_read(priv, ADS1262_CMD_RREG, ADS1262_REG_INPMUX);
+        printk("Reading UNPMUX register %d", priv->cmd_buffer[2]);
         if (!(priv->cmd_buffer[2] & ADS1262_DATA_TEMP_SENS))
                 printk("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
-        
+
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
-	printk("Initializing ADC conversions on ADC1");
+        printk("sent START1 command from init function");
         return ret;
 }
 
@@ -188,7 +192,8 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
                 int32_t data;
                 data = spi->rx_buffer[1] | spi->rx_buffer[2] |
                         spi->rx_buffer[3] | spi->rx_buffer[4];
-                *val = data;
+                *val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
+                                        ADS1262_BITS_PER_SAMPLE -1);
                 return IIO_VAL_INT;
         default:
                 break;
@@ -232,10 +237,20 @@ static int ads1262_probe(struct spi_device *spi)
         return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
+static void ads1262_remove(struct spi_device *spi) {
+
+        struct iio_dev * indio_dev;
+        struct ads1262 *adc;
+
+        indio_dev = spi_get_drvdata(spi);
+        adc = iio_priv(indio_dev);
+        ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
+
+}
 
 static struct spi_device_id ads1262_id_table[] = {
         { "ads1262", 0 },
-	{}
+        {}
 };
 MODULE_DEVICE_TABLE(spi, ads1262_id_table);
 
@@ -251,6 +266,7 @@ static struct spi_driver ads1262_driver = {
                 .of_match_table = ads1262_of_match,
         },
         .probe = ads1262_probe,
+        .remove = ads1262_remove,
         .id_table = ads1262_id_table,
 };
 module_spi_driver(ads1262_driver)

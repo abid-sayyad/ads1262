@@ -5,7 +5,7 @@
 	fragment@0 {
 		target = <&spidev0>;
 		__overlay__ {
-			status = "disable";
+			status = "disabled";
 		};
 	};
 		
