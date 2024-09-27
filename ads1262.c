@@ -110,7 +110,7 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
         return ret;
 }
 
-static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
+static int ads1262_reg_read(void *context, unsigned int reg)
 {
         struct ads1262 *priv = context;
         struct spi_transfer reg_read_xfer = {
@@ -125,7 +125,7 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
         };
         int ret;
 
-        priv->cmd_buffer[0] = ADS1262_CMD_RREG | val;
+        priv->cmd_buffer[0] = ADS1262_CMD_RREG | reg;
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = 0;
 
