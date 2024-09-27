@@ -148,7 +148,6 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
 static int ads1262_init(struct iio_dev *indio_dev)
 {
         struct ads1262 *priv = iio_priv(indio_dev);
-        struct device *dev = &priv->spi->dev;
         int ret;
 
         ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
@@ -172,7 +171,7 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
 static int ads1262_read_raw(struct iio_dev * indio_dev,
                             struct iio_chan_spec const * chan,
-                            long *val, int *val2, long mask)
+                            int *val, int *val2, long mask)
 {
         struct ads1262 *spi = iio_priv(indio_dev);
         int ret;
