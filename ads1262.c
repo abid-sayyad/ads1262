@@ -84,10 +84,8 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
         };
 
         priv->rx_buffer[0] = command;
-        printk("Writing commad %d", priv->rx_buffer[0]);
 
         int ret = spi_sync_transfer(priv->spi, &xfer, 1);
-        printk("write_cmd return value %d", ret);
         return ret;
 }
 
@@ -108,10 +106,8 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = val;
-        printk(" sending command : %d %d %d",priv->cmd_buffer[0],
                         priv->cmd_buffer[1], priv->cmd_buffer[2]);
         int ret = spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
-        printk("reg_write ret value %d", ret);
         return ret;
 }
 
@@ -135,7 +131,6 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[2] = 0;
 
         ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
-        printk(" reading register : %d %d %d",priv->cmd_buffer[0],
                         priv->cmd_buffer[1], priv->cmd_buffer[2]);
         if (ret)
                 return ret;
@@ -153,18 +148,11 @@ static int ads1262_init(struct iio_dev *indio_dev)
         int ret;
 
         ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
-        printk("RESET command sent from the init function");
         msleep(10);
-        if(ret != 0)
-                printk("There is something wrong with the deviec %x\n", ret);
 
         /* Setting up the MUX to read the internal temperature sensor*/
         ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
-        printk("INPUT MUX set to %d", ADS1262_DATA_TEMP_SENS);
         ret = ads1262_reg_read(priv, ADS1262_CMD_RREG, ADS1262_REG_INPMUX);
-        printk("Reading UNPMUX register %d", priv->cmd_buffer[2]);
-        if (!(priv->cmd_buffer[2] & ADS1262_DATA_TEMP_SENS))
-                printk("Err writing to the INPMUX %x\n", priv->cmd_buffer[2]);
 
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
@@ -230,6 +218,10 @@ static int ads1262_probe(struct spi_device *spi)
         indio_dev->num_channels = ARRAY_SIZE(ads1262_channels);
         indio_dev->info = &ads1262_info;
 
+        ret = ads1262_reg_read(adc, ADS1262_REG_ID)
+        if(!(adc->rx_buffer[2] & ADS1262_REG_ID))
+                dev_err_probe(&spi->dev, "Wrong device ID 0x%x\n",
+                                adc->rx_buffer[2]);
         ret = ads1262_init(indio_dev);
         if(ret)
                 return ret;
