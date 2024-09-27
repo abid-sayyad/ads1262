@@ -106,7 +106,6 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = val;
-                        priv->cmd_buffer[1], priv->cmd_buffer[2]);
         int ret = spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
         return ret;
 }
@@ -131,7 +130,6 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[2] = 0;
 
         ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
-                        priv->cmd_buffer[1], priv->cmd_buffer[2]);
         if (ret)
                 return ret;
 
