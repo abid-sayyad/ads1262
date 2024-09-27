@@ -218,7 +218,7 @@ static int ads1262_probe(struct spi_device *spi)
         indio_dev->info = &ads1262_info;
 
         ret = ads1262_reg_read(adc, ADS1262_REG_ID);
-        if(!(&adc->rx_buffer[2] && ADS1262_REG_ID))
+        if(adc->rx_buffer[2] != ADS1262_REG_ID)
                 dev_err_probe(&spi->dev, "Wrong device ID 0x%x\n",
                                 adc->rx_buffer[2]);
         ret = ads1262_init(indio_dev);
