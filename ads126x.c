@@ -83,8 +83,8 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
                 },
         };
 
-        priv->cmd_buffer[0] = command;
-	printk("Writing commad %d", priv->cmd_buffer[0]);
+        priv->rx_buffer[0] = command;
+	printk("Writing commad %d", priv->rx_buffer[0]);
 
         int ret = spi_sync_transfer(priv->spi, &xfer, 1);
 	printk("write_cmd return value %d", ret);
@@ -134,10 +134,8 @@ static int ads1262_reg_read(void *context, unsigned int reg, unsigned int val)
         priv->cmd_buffer[1] = 0;
         priv->cmd_buffer[2] = 0;
 	
-	printk("before reading check %d", priv->cmd_buffer[0]);
-        //ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
-	ret = spi_write_then_read(priv->spi, priv->cmd_buffer, 3, &priv->cmd_buffer, 3);
-	printk(" reading command : %d %d %d",priv->cmd_buffer[0],
+	ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
+	printk(" reading register : %d %d %d",priv->cmd_buffer[0],
                         priv->cmd_buffer[1], priv->cmd_buffer[2]);
         if (ret)
                 return ret;
@@ -152,7 +150,6 @@ static int ads1262_init(struct iio_dev *indio_dev)
 {
         struct ads1262 *priv = iio_priv(indio_dev);
         struct device *dev = &priv->spi->dev;
-        unsigned int val;
         int ret;
 
         ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
