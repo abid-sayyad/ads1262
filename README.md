@@ -1,7 +1,3 @@
-Here’s an improved version of your README file, with elaboration and formatting improvements:
-
----
-
 # ADS1262 Linux Kernel Driver
 
 ## Overview
