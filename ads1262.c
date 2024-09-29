@@ -155,7 +155,6 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
         /* Starting the ADC conversions*/
         ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
-        printk("sent START1 command from init function");
         return ret;
 }
 
@@ -173,8 +172,7 @@ static int ads1262_read_raw(struct iio_dev * indio_dev,
         case IIO_CHAN_INFO_RAW:
                 ret = ads1262_write_cmd(spi, ADS1262_CMD_RDATA1);
                 if(ret !=0 ) {
-                        printk("dt-iio - Error reading ADC value!\n");
-                        return ret;
+                        return -EINVAL;
                 }
                 int32_t data;
                 data = spi->rx_buffer[1] | spi->rx_buffer[2] |
