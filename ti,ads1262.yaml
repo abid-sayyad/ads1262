@@ -22,45 +22,46 @@ properties:
       - ti,ads1262
   reg:
     maxItems: 1
-  
+
   vref-supply:
     description: |
       The regulator supply for ADC and DAC reference voltage.
-  
+
   spi-cpha: true
 
   '#address-cells':
     const: 1
-  
+
   '#size-cells':
     const: 0
-  
+
 required:
   - compatible
   - reg
   - spi-cpha
-  
+
 patternProperties:
   "^channel@[0-10]$":
     $ref: adc.yaml
     type: object
     description: |
       Represents the external channels which are connected to the ADC.
-    
+
     properties:
       reg:
         description: |
-          The channel number. It can have upto 11 channels numbered from 0 to 10.
+          Channel number. It can have up to 11 channels numbered from 0 to 10.
         items:
           - minimum: 0
-            maximum: 7
-      
+            maximum: 10
+
       diff-channels: true
-    
+
     required:
       - reg
-      
+
     additionalProperties: false
+
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
@@ -71,9 +72,9 @@ examples:
     spi {
       #address-cells = <1>;
       #sixe-cells = <0>;
-      
+
       ads1262: adc@0 {
-        compativle = "ti,ads1262";
+        compatible = "ti,ads1262";
         reg = <0>;
         spi-max_frequency = <7372800>;
         vref-supply = <&adc_vref>;
@@ -88,3 +89,4 @@ examples:
         };
       };
     };
+...
