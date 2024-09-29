@@ -195,6 +195,13 @@ static const struct iio_info ads1262_info = {
 	.read_raw = ads1262_read_raw,
 };
 
+static void ads1262_stop(void *ptr)
+{
+	struct ads1262 *adc = (struct ads1262 *)ptr;
+
+	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
+}
+
 static int ads1262_probe(struct spi_device *spi)
 {
 	struct ads1262 *adc;
@@ -229,21 +236,15 @@ static int ads1262_probe(struct spi_device *spi)
 		dev_err_probe(&spi->dev, -EINVAL, "Wrong device ID 0x%x\n",
 			      adc->rx_buffer[2]);
 
+	ret = devm_add_action_or_reset(&spi->dev, ads1262_stop, adc);
+	if (ret)
+		return ret;
+
 	ret = ads1262_init(indio_dev);
 	if (ret)
 		return ret;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
-}
-
-static void ads1262_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev;
-	struct ads1262 *adc;
-
-	indio_dev = spi_get_drvdata(spi);
-	adc = iio_priv(indio_dev);
-	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
 }
 
 static struct spi_device_id ads1262_id_table[] = {
@@ -264,7 +265,6 @@ static struct spi_driver ads1262_driver = {
 		.of_match_table = ads1262_of_match,
 	},
 	.probe = ads1262_probe,
-	.remove = ads1262_remove,
 	.id_table = ads1262_id_table,
 };
 module_spi_driver(ads1262_driver)
