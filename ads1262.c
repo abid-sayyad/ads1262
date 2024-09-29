@@ -73,7 +73,7 @@ static const struct iio_chan_spec ads1262_channels[] = {
 static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
 {
         struct spi_transfer xfer = {
-                .tx_buf = priv->rx_buffer,
+                .tx_buf = priv->cmd_buffer,
                 .rx_buf = priv->rx_buffer,
                 .len = ADS1262_SPI_RDATA_BUFFER_SIZE,
                 .speed_hz = ADS1262_CLK_RATE_HZ,
@@ -83,7 +83,7 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
                 },
         };
 
-        priv->rx_buffer[0] = command;
+        priv->cmd_buffer[0] = command;
 
         int ret = spi_sync_transfer(priv->spi, &xfer, 1);
         return ret;
