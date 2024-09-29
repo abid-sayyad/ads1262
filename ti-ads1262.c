@@ -143,15 +143,19 @@ static int ads1262_init(struct iio_dev *indio_dev)
 	int ret;
 
 	ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
+	if (ret)
+		return ret;
+
 	fsleep(10000);
 
 	/* Setting up the MUX to read the internal temperature sensor*/
 	ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
 	ret = ads1262_reg_read(priv, ADS1262_REG_INPMUX);
+	if (ret)
+		return ret;
 
 	/* Starting the ADC conversions*/
-	ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
-	return ret;
+	return ads1262_write_cmd(priv, ADS1262_CMD_START1);
 }
 
 static int ads1262_read_raw(struct iio_dev *indio_dev,
@@ -176,9 +180,8 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 				     ADS1262_BITS_PER_SAMPLE - 1);
 		return IIO_VAL_INT;
 	default:
-		break;
+		return -EINVAL;
 	}
-	return -EINVAL;
 }
 
 static const struct iio_info ads1262_info = {
@@ -194,6 +197,7 @@ static int ads1262_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
 
@@ -211,6 +215,9 @@ static int ads1262_probe(struct spi_device *spi)
 	indio_dev->info = &ads1262_info;
 
 	ret = ads1262_reg_read(adc, ADS1262_REG_ID);
+	if (ret)
+		return ret;
+
 	if (adc->rx_buffer[2] != ADS1262_REG_ID)
 		dev_err_probe(&spi->dev, -EINVAL, "Wrong device ID 0x%x\n",
 			      adc->rx_buffer[2]);
