@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * IIO driver for Texas Instruments ADS1662  32-bit ADC
+ *
+ * Datasheet: https://www.ti.com/product/ADS1262
+ */
+
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/module.h>
