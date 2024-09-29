@@ -140,7 +140,6 @@ static int ads1262_reg_read(void *context, unsigned int reg)
 static int ads1262_init(struct iio_dev *indio_dev)
 {
 	struct ads1262 *priv = iio_priv(indio_dev);
-	// struct device *dev = &priv->spi->dev;
 	int ret;
 
 	ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
