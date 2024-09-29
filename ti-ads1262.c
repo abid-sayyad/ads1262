@@ -246,7 +246,7 @@ static struct spi_device_id ads1262_id_table[] = {
 MODULE_DEVICE_TABLE(spi, ads1262_id_table);
 
 static const struct of_device_id ads1262_of_match[] = {
-	{ .compatible = "ads1262" },
+	{ .compatible = "ti,ads1262" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ads1262_of_match);
