@@ -144,7 +144,7 @@ static int ads1262_init(struct iio_dev *indio_dev)
 	int ret;
 
 	ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
-	msleep(10);
+	fsleep(10000);
 
 	/* Setting up the MUX to read the internal temperature sensor*/
 	ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
