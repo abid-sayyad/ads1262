@@ -31,7 +31,7 @@
 #define ADS1262_BITS_PER_SAMPLE 32
 #define ADS1262_CLK_RATE_HZ     7372800
 #define ADS1262_CLOCKS_TO_USECS(x)  \
-                (DIV_ROUND_UP((x) * MICROHZ_PER_HZ, ADS1262_CLK_RATE_HZ))
+	(DIV_ROUND_UP((x) * MICROHZ_PER_HZ, ADS1262_CLK_RATE_HZ))
 
 /* The Read/Write commands require 4 tCLK to encode and decode, for speeds
  * 2x the clock rate, these commands would require extra time between the
@@ -54,210 +54,205 @@
 #define ADS1262_DATA_AIN0_SENS  0x0A
 
 struct ads1262 {
-        struct spi_device *spi;
-
-        /* Buffer for synchronous SPI exchanges (read/write registers)*/
-        uint8_t cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
-        /* Buffer for incoming SPI data*/
-        uint8_t rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
-
+	struct spi_device *spi;
+	/* Buffer for synchronous SPI exchanges (read/write registers)*/
+	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
+	/* Buffer for incoming SPI data*/
+	u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_chan_spec ads1262_channels[] = {
-        {
-                .type = IIO_VOLTAGE,
-                .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-        }
+	{
+		.type = IIO_VOLTAGE,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+	}
 };
 
 static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
 {
-        struct spi_transfer xfer = {
-                .tx_buf = priv->cmd_buffer,
-                .rx_buf = priv->rx_buffer,
-                .len = ADS1262_SPI_RDATA_BUFFER_SIZE,
-                .speed_hz = ADS1262_CLK_RATE_HZ,
-                .delay = {
-                        .value = 5,
-                        .unit = SPI_DELAY_UNIT_USECS,
-                },
-        };
+	struct spi_transfer xfer = {
+		.tx_buf = priv->cmd_buffer,
+		.rx_buf = priv->rx_buffer,
+		.len = ADS1262_SPI_RDATA_BUFFER_SIZE,
+		.speed_hz = ADS1262_CLK_RATE_HZ,
+		.delay = {
+			.value = 5,
+			.unit = SPI_DELAY_UNIT_USECS,
+		},
+	};
 
-        priv->cmd_buffer[0] = command;
+	priv->cmd_buffer[0] = command;
 
-        int ret = spi_sync_transfer(priv->spi, &xfer, 1);
-        return ret;
+	int ret = spi_sync_transfer(priv->spi, &xfer, 1);
+	return ret;
 }
 
 static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
 {
-        struct ads1262 *priv = context;
-        struct spi_transfer reg_write_xfer = {
-                .tx_buf = priv->cmd_buffer,
-                .rx_buf = priv->cmd_buffer,
-                .len = 3,
-                .speed_hz = ADS1262_CLK_RATE_HZ,
-                .delay = {
-                        .value = 5,
-                        .unit = SPI_DELAY_UNIT_USECS,
-                },
-        };
+	struct ads1262 *priv = context;
+	struct spi_transfer reg_write_xfer = {
+		.tx_buf = priv->cmd_buffer,
+		.rx_buf = priv->cmd_buffer,
+		.len = 3,
+		.speed_hz = ADS1262_CLK_RATE_HZ,
+		.delay = {
+			.value = 5,
+			.unit = SPI_DELAY_UNIT_USECS,
+		},
+	};
 
-        priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
-        priv->cmd_buffer[1] = 0;
-        priv->cmd_buffer[2] = val;
-        int ret = spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
-        return ret;
+	priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
+	priv->cmd_buffer[1] = 0;
+	priv->cmd_buffer[2] = val;
+	int ret = spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
+	return ret;
 }
 
 static int ads1262_reg_read(void *context, unsigned int reg)
 {
-        unsigned int val;
-        struct ads1262 *priv = context;
-        struct spi_transfer reg_read_xfer = {
-                .tx_buf = priv->cmd_buffer,
-                .rx_buf = priv->cmd_buffer,
-                .len = 3,
-                .speed_hz = ADS1262_CLK_RATE_HZ,
-                .delay = {
-                        .value = 5,
-                        .unit = SPI_DELAY_UNIT_USECS,
-                },
-        };
-        int ret;
+	unsigned int val;
+	struct ads1262 *priv = context;
+	struct spi_transfer reg_read_xfer = {
+		.tx_buf = priv->cmd_buffer,
+		.rx_buf = priv->cmd_buffer,
+		.len = 3,
+		.speed_hz = ADS1262_CLK_RATE_HZ,
+		.delay = {
+			.value = 5,
+			.unit = SPI_DELAY_UNIT_USECS,
+		},
+	};
+	int ret;
 
-        priv->cmd_buffer[0] = ADS1262_CMD_RREG | reg;
-        priv->cmd_buffer[1] = 0;
-        priv->cmd_buffer[2] = 0;
+	priv->cmd_buffer[0] = ADS1262_CMD_RREG | reg;
+	priv->cmd_buffer[1] = 0;
+	priv->cmd_buffer[2] = 0;
 
-        ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
-        if (ret)
-                return ret;
+	ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
+	if (ret)
+		return ret;
 
-        val = priv->cmd_buffer[2];
+	val = priv->cmd_buffer[2];
 
-        return 0;
-
+	return 0;
 }
 
 static int ads1262_init(struct iio_dev *indio_dev)
 {
-        struct ads1262 *priv = iio_priv(indio_dev);
-       // struct device *dev = &priv->spi->dev;
-        int ret;
+	struct ads1262 *priv = iio_priv(indio_dev);
+	// struct device *dev = &priv->spi->dev;
+	int ret;
 
-        ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
-        msleep(10);
+	ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
+	msleep(10);
 
-        /* Setting up the MUX to read the internal temperature sensor*/
-        ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
-        ret = ads1262_reg_read(priv, ADS1262_REG_INPMUX);
+	/* Setting up the MUX to read the internal temperature sensor*/
+	ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
+	ret = ads1262_reg_read(priv, ADS1262_REG_INPMUX);
 
-        /* Starting the ADC conversions*/
-        ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
-        return ret;
+	/* Starting the ADC conversions*/
+	ret = ads1262_write_cmd(priv, ADS1262_CMD_START1);
+	return ret;
 }
 
-
-static int ads1262_read_raw(struct iio_dev * indio_dev,
-                            struct iio_chan_spec const * chan,
-                            int *val, int *val2, long mask)
+static int ads1262_read_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int *val, int *val2, long mask)
 {
-        struct ads1262 *spi = iio_priv(indio_dev);
-        int ret;
+	struct ads1262 *spi = iio_priv(indio_dev);
+	s32 data;
+	int ret;
 
-        ret = ads1262_init(indio_dev);
+	ret = ads1262_init(indio_dev);
 
-        switch (mask) {
-        case IIO_CHAN_INFO_RAW:
-                ret = ads1262_write_cmd(spi, ADS1262_CMD_RDATA1);
-                if(ret !=0 ) {
-                        return -EINVAL;
-                }
-                int32_t data;
-                data = spi->rx_buffer[1] | spi->rx_buffer[2] |
-                        spi->rx_buffer[3] | spi->rx_buffer[4];
-                *val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
-                                        ADS1262_BITS_PER_SAMPLE -1);
-                return IIO_VAL_INT;
-        default:
-                break;
-        }
-        return -EINVAL;
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		ret = ads1262_write_cmd(spi, ADS1262_CMD_RDATA1);
+		if (ret != 0)
+			return -EINVAL;
+
+		data = spi->rx_buffer[1] | spi->rx_buffer[2] |
+			spi->rx_buffer[3] | spi->rx_buffer[4];
+		*val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
+				     ADS1262_BITS_PER_SAMPLE - 1);
+		return IIO_VAL_INT;
+	default:
+		break;
+	}
+	return -EINVAL;
 }
 
 static const struct iio_info ads1262_info = {
-        .read_raw = ads1262_read_raw,
+	.read_raw = ads1262_read_raw,
 };
 
 static int ads1262_probe(struct spi_device *spi)
 {
-        struct ads1262 *adc;
-        struct iio_dev *indio_dev;
-        int ret;
+	struct ads1262 *adc;
+	struct iio_dev *indio_dev;
+	int ret;
 
-        indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
-        if(!indio_dev)
-                return -ENOMEM;
-        adc = iio_priv(indio_dev);
-        adc->spi = spi;
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
+	if (!indio_dev)
+		return -ENOMEM;
+	adc = iio_priv(indio_dev);
+	adc->spi = spi;
 
-        spi->mode = SPI_MODE_1;
+	spi->mode = SPI_MODE_1;
 
-        spi->max_speed_hz = ADS1262_SPI_BUS_SPEED_SLOW;
+	spi->max_speed_hz = ADS1262_SPI_BUS_SPEED_SLOW;
 
-        spi_set_drvdata(spi, indio_dev);
+	spi_set_drvdata(spi, indio_dev);
 
-        indio_dev->dev.parent = &spi->dev;
-        indio_dev->name = spi_get_device_id(spi)->name;
-        indio_dev->modes = INDIO_DIRECT_MODE;
-        indio_dev->channels = ads1262_channels;
-        indio_dev->num_channels = ARRAY_SIZE(ads1262_channels);
-        indio_dev->info = &ads1262_info;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = ads1262_channels;
+	indio_dev->num_channels = ARRAY_SIZE(ads1262_channels);
+	indio_dev->info = &ads1262_info;
 
-        ret = ads1262_reg_read(adc, ADS1262_REG_ID);
-        if(adc->rx_buffer[2] != ADS1262_REG_ID)
-                dev_err_probe(&spi->dev, -EINVAL, "Wrong device ID 0x%x\n",
-                                 adc->rx_buffer[2]);
+	ret = ads1262_reg_read(adc, ADS1262_REG_ID);
+	if (adc->rx_buffer[2] != ADS1262_REG_ID)
+		dev_err_probe(&spi->dev, -EINVAL, "Wrong device ID 0x%x\n",
+			      adc->rx_buffer[2]);
 
-        ret = ads1262_init(indio_dev);
-        if(ret)
-                return ret;
+	ret = ads1262_init(indio_dev);
+	if (ret)
+		return ret;
 
-        return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
-static void ads1262_remove(struct spi_device *spi) {
+static void ads1262_remove(struct spi_device *spi)
+{
+	struct iio_dev *indio_dev;
+	struct ads1262 *adc;
 
-        struct iio_dev * indio_dev;
-        struct ads1262 *adc;
-
-        indio_dev = spi_get_drvdata(spi);
-        adc = iio_priv(indio_dev);
-        ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
-
+	indio_dev = spi_get_drvdata(spi);
+	adc = iio_priv(indio_dev);
+	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
 }
 
 static struct spi_device_id ads1262_id_table[] = {
-        { "ads1262", 0 },
-        {}
+	{ "ads1262", 0 },
+	{}
 };
 MODULE_DEVICE_TABLE(spi, ads1262_id_table);
 
 static const struct of_device_id ads1262_of_match[] = {
-        { .compatible = "ads1262"},
-        {},
+	{ .compatible = "ads1262" },
+	{},
 };
 MODULE_DEVICE_TABLE(of, ads1262_of_match);
 
 static struct spi_driver ads1262_driver = {
-        .driver = {
-                .name = "ads1262",
-                .of_match_table = ads1262_of_match,
-        },
-        .probe = ads1262_probe,
-        .remove = ads1262_remove,
-        .id_table = ads1262_id_table,
+	.driver = {
+		.name = "ads1262",
+		.of_match_table = ads1262_of_match,
+	},
+	.probe = ads1262_probe,
+	.remove = ads1262_remove,
+	.id_table = ads1262_id_table,
 };
 module_spi_driver(ads1262_driver)
 
