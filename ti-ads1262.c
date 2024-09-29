@@ -240,7 +240,7 @@ static void ads1262_remove(struct spi_device *spi)
 }
 
 static struct spi_device_id ads1262_id_table[] = {
-	{ "ads1262", 0 },
+	{ "ads1262" },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ads1262_id_table);
