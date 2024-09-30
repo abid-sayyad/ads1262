@@ -1,4 +1,4 @@
-obj-m += ads1262.o
+obj-m += ti-ads1262.o
 
 all: module dt
 	echo Building Devicetree Overlay and kernel module
