@@ -25,6 +25,9 @@ properties:
   
   spi-cpha: true
 
+  reset-gpios:
+    maxItems: 1
+
   vref-supply:
     description: |
       The regulator supply for ADC and DAC reference voltage.
@@ -79,6 +82,7 @@ examples:
         spi-max_frequency = <7372800>;
         vref-supply = <&adc_vref>;
         spi-cpha;
+        reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>
 
         #address-cells = <1>;
         #size-cells = <0>;
