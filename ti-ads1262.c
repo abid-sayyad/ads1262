@@ -117,22 +117,11 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
 static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct ads1262 *priv = context;
-	struct spi_transfer reg_write_xfer = {
-		.tx_buf = priv->cmd_buffer,
-		.rx_buf = priv->cmd_buffer,
-		.len = 3,
-		.speed_hz = ADS1262_CLK_RATE_HZ,
-		.delay = {
-			.value = 5,
-			.unit = SPI_DELAY_UNIT_USECS,
-		},
-	};
 
 	priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
 	priv->cmd_buffer[1] = 0;
 	priv->cmd_buffer[2] = val;
-	int ret = spi_sync_transfer(priv->spi, &reg_write_xfer, 1);
-	return ret;
+	return spi_write(priv->spi, &priv->cmd_buffer[0], 3);
 }
 
 static int ads1262_reg_read(void *context, unsigned int reg)
