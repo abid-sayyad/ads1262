@@ -35,7 +35,3 @@ This driver code is released under the **GPL-2.0 License**, ensuring that it rem
 ---
 
 **Authored by**: Sayyad Abid
-
----
-
-This version adds structure and detail, clarifying the technical aspects while also enhancing readability. Let me know if you'd like any more changes!
