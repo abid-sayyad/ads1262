@@ -53,7 +53,7 @@ patternProperties:
           Channel number. It can have up to 10 channels numbered from 0 to 9.
         items:
           - minimum: 0
-            maximum: 10
+            maximum: 9
 
       diff-channels: true
 
