@@ -68,11 +68,31 @@ struct ads1262 {
 	u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 };
 
+#define ADS1262_CHAN(index)
+{
+	.type = IIO_VOLTAGE
+	.indexed = 1,
+	.channel = index,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+	.scan_index = index,
+	.scan_type = {
+		.sign = 'u',
+		.realbits = 32,
+		.storagebtis = 32,
+	},
+}
+
 static const struct iio_chan_spec ads1262_channels[] = {
-	{
-		.type = IIO_VOLTAGE,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-	}
+	ADS1262_CHAN(0),
+	ADS1262_CHAN(1),
+	ADS1262_CHAN(2),
+	ADS1262_CHAN(3),
+	ADS1262_CHAN(4),
+	ADS1262_CHAN(5),
+	ADS1262_CHAN(6),
+	ADS1262_CHAN(7),
+	ADS1262_CHAN(8),
+	ADS1262_CHAN(9),
 };
 
 static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
