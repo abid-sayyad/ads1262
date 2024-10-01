@@ -142,7 +142,7 @@ static const struct ads1262_chip_info ads1262_chip_info_tbl[] = {
 	},
 };
 
-static int ads1262_write_cmd(struct ads1262_private *priv, u8 command)
+static int ads1262_write_cmd(struct iio_dev *indio_dev, u8 command)
 {	s32 data;
 	struct spi_transfer xfer = {
 		.tx_buf = priv->cmd_buffer,
