@@ -117,7 +117,7 @@ struct ads1262_private {
 	.scan_type = {					\
 		.sign = 'u',				\
 		.realbits = 32,				\
-		.storagebits = 32,
+		.storagebits = 32,			\
 		.endianness = IIO_CPU,			\
 	},						\
 }
