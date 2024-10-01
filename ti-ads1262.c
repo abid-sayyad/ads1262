@@ -62,7 +62,8 @@
 
 struct ads1262_private {
 	struct spi_device *spi;
-	struct gpio_desc *resset_gpio;
+	struct gpio_desc *reset_gpio;
+	struct mutex lock;
 	/* Buffer for synchronous SPI exchanges (read/write registers)*/
 	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
 	/* Buffer for incoming SPI data*/
@@ -97,7 +98,7 @@ static const struct iio_chan_spec ads1262_channels[] = {
 };
 
 static int ads1262_write_cmd(struct ads1262_private *priv, u8 command)
-{
+{	s32 data;
 	struct spi_transfer xfer = {
 		.tx_buf = priv->cmd_buffer,
 		.rx_buf = priv->rx_buffer,
@@ -112,6 +113,8 @@ static int ads1262_write_cmd(struct ads1262_private *priv, u8 command)
 	priv->cmd_buffer[0] = command;
 
 	int ret = spi_sync_transfer(priv->spi, &xfer, 1);
+	data = spi->rx_buffer[1] | spi->rx_buffer[2] |
+		spi->rx_buffer[3] | spi->rx_buffer[4];
 	return ret;
 }
 
@@ -194,9 +197,9 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct ads1262_private *spi = iio_priv(indio_dev);
-	s32 data;
 	int ret;
 
+	mutex_lock(&spi->lock);
 	ret = ads1262_init(indio_dev);
 
 	switch (mask) {
@@ -205,8 +208,6 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 		if (ret != 0)
 			return -EINVAL;
 
-		data = spi->rx_buffer[1] | spi->rx_buffer[2] |
-			spi->rx_buffer[3] | spi->rx_buffer[4];
 		*val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
 				     ADS1262_BITS_PER_SAMPLE - 1);
 		return IIO_VAL_INT;
