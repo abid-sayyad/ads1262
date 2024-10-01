@@ -27,6 +27,9 @@ properties:
 
   reset-gpios:
     maxItems: 1
+  
+  "#io-channel-cells":
+    const: 1
 
   vref-supply:
     description: |
@@ -41,29 +44,6 @@ properties:
 required:
   - compatible
   - reg
-  - spi-cpha
-
-patternProperties:
-  "^channel@[0-10]$":
-    $ref: adc.yaml
-    type: object
-    description: |
-      Represents the external channels which are connected to the ADC.
-
-    properties:
-      reg:
-        description: |
-          Channel number. It can have up to 10 channels numbered from 0 to 9.
-        items:
-          - minimum: 0
-            maximum: 9
-
-      diff-channels: true
-
-    required:
-      - reg
-
-    additionalProperties: false
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
@@ -86,11 +66,6 @@ examples:
 
         #address-cells = <1>;
         #size-cells = <0>;
-
-        channel@0 {
-          reg = <0>;
-          diff-channels = <0 1>;
-        };
       };
     };
 ...
