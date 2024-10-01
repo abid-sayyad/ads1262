@@ -217,11 +217,13 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static void ads1262_stop(struct iio_dev *indio_dev)
+static int ads1262_stop(struct iio_dev *indio_dev)
 {
 	struct ads1262_private *adc = iio_priv(indio_dev);
 
-	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
+	ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
+
+	return 0;
 }
 
 static int ads1262_read_raw(struct iio_dev *indio_dev,
@@ -293,7 +295,7 @@ static irqreturn_t ads1262_trigger_handler(int irq, void *p)
 		if (ret)
 			dev_err(&priv->spi->dev,
 				"stop ADC conversions fialed\n");
-	 	priv->buffer[j] = ads1262_read(indio_dev);
+	 	priv->buffer[j] = ads1262_write_cmd(indio_dev, ADS1262_CMD_RDATA1);
 		ret = ads1262_stop(indio_dev);
 		if (ret)
 			dev_err(&priv->spi->dev,
