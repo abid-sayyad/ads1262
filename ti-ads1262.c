@@ -219,8 +219,6 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 
 static int ads1262_stop(struct iio_dev *indio_dev)
 {
-	struct ads1262_private *adc = iio_priv(indio_dev);
-
 	ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
 
 	return 0;
@@ -317,7 +315,7 @@ static int ads1262_probe(struct spi_device *spi)
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*ads1262_priv));
-	if (!indio_dev == NULL)
+	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	ads1262_priv = iio_priv(indio_dev);
