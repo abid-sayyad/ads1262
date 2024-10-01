@@ -60,8 +60,9 @@
 /* Single ended AIN0 ADC read*/
 #define ADS1262_DATA_AIN0_SENS  0x0A
 
-struct ads1262 {
+struct ads1262_private {
 	struct spi_device *spi;
+	struct gpio_desc *resset_gpio;
 	/* Buffer for synchronous SPI exchanges (read/write registers)*/
 	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
 	/* Buffer for incoming SPI data*/
@@ -95,7 +96,7 @@ static const struct iio_chan_spec ads1262_channels[] = {
 	ADS1262_CHAN(9),
 };
 
-static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
+static int ads1262_write_cmd(struct ads1262_private *priv, u8 command)
 {
 	struct spi_transfer xfer = {
 		.tx_buf = priv->cmd_buffer,
@@ -116,7 +117,7 @@ static int ads1262_write_cmd(struct ads1262 *priv, u8 command)
 
 static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
 {
-	struct ads1262 *priv = context;
+	struct ads1262_private *priv = context;
 
 	priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
 	priv->cmd_buffer[1] = 0;
@@ -127,7 +128,7 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
 static int ads1262_reg_read(void *context, unsigned int reg)
 {
 	unsigned int val;
-	struct ads1262 *priv = context;
+	struct ads1262_private *priv = context;
 	struct spi_transfer reg_read_xfer = {
 		.tx_buf = priv->cmd_buffer,
 		.rx_buf = priv->cmd_buffer,
@@ -155,7 +156,7 @@ static int ads1262_reg_read(void *context, unsigned int reg)
 
 static int ads1262_init(struct iio_dev *indio_dev)
 {
-	struct ads1262 *priv = iio_priv(indio_dev);
+	struct ads1262_private *priv = iio_priv(indio_dev);
 	int ret;
 
 	ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
@@ -174,11 +175,25 @@ static int ads1262_init(struct iio_dev *indio_dev)
 	return ads1262_write_cmd(priv, ADS1262_CMD_START1);
 }
 
+static int ads1262_reset(struct iio_dev *indio_dev)
+{
+	struct ads1262_reset *priv = iio_priv(indio_dev);
+
+	if(priv->reset_gpio){
+		gpiod_set_value(priv->reset_gpio, 0);
+		udelay(200);
+		gpiod_set_value(priv->reset_gpio, 1);
+	} else {
+		return ads1262_write_cmd(indio_dev, ADS1262_CMD_RESET);
+	}
+	return 0;
+}
+
 static int ads1262_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long mask)
 {
-	struct ads1262 *spi = iio_priv(indio_dev);
+	struct ads1262_private *spi = iio_priv(indio_dev);
 	s32 data;
 	int ret;
 
@@ -206,14 +221,14 @@ static const struct iio_info ads1262_info = {
 
 static void ads1262_stop(void *ptr)
 {
-	struct ads1262 *adc = (struct ads1262 *)ptr;
+	struct ads1262_private *adc = (struct ads1262 *)ptr;
 
 	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
 }
 
 static int ads1262_probe(struct spi_device *spi)
 {
-	struct ads1262 *adc;
+	struct ads1262_private *adc;
 	struct iio_dev *indio_dev;
 	int ret;
 
