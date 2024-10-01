@@ -239,7 +239,8 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 		ret = ads1262_reg_write(indio_dev, ADS1262_REG_INPMUX,
 					chan->channel);
 		if (ret){
-			val = ads1262_reg_read(indio_dev, ADS1262_REG_INPMUX);
+			ret = ads1262_reg_read(indio_dev, ADS1262_REG_INPMUX);
+			reg = priv->cmd_buffer[2];
 			dev_err(&priv->spi->dev, "Set ADC CH failed %x\n", reg);
 			goto out;
 		}
