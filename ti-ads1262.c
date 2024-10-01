@@ -217,9 +217,9 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static void ads1262_stop(void *ptr)
+static void ads1262_stop(struct iio_dev *indio_dev)
 {
-	struct ads1262_private *adc = (struct ads1262 *)ptr;
+	struct ads1262_private *adc = iio_priv(indio_dev);
 
 	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
 }
