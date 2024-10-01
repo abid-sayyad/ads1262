@@ -109,7 +109,7 @@ struct ads1262_private {
 
 #define ADS1262_CHAN(index)				\
 {							\
-	.type = IIO_VOLTAGE				\
+	.type = IIO_VOLTAGE,				\
 	.indexed = 1,					\
 	.channel = index,				\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
@@ -117,7 +117,8 @@ struct ads1262_private {
 	.scan_type = {					\
 		.sign = 'u',				\
 		.realbits = 32,				\
-		.storagebtis = 32,			\
+		.storagebits = 32,
+		.endianness = IIO_CPU,			\
 	},						\
 }
 
@@ -157,8 +158,8 @@ static int ads1262_write_cmd(struct ads1262_private *priv, u8 command)
 	priv->cmd_buffer[0] = command;
 
 	int ret = spi_sync_transfer(priv->spi, &xfer, 1);
-	data = spi->rx_buffer[1] | spi->rx_buffer[2] |
-		spi->rx_buffer[3] | spi->rx_buffer[4];
+	data = priv->rx_buffer[1] | priv->rx_buffer[2] |
+		priv->rx_buffer[3] | priv->rx_buffer[4];
 	return ret;
 }
 
@@ -203,7 +204,7 @@ static int ads1262_reg_read(void *context, unsigned int reg)
 
 static int ads1262_reset(struct iio_dev *indio_dev)
 {
-	struct ads1262_reset *priv = iio_priv(indio_dev);
+	struct ads1262_private *priv = iio_priv(indio_dev);
 
 	if(priv->reset_gpio){
 		gpiod_set_value(priv->reset_gpio, 0);
