@@ -243,10 +243,10 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 
 		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_START1);
 		if (ret) {
-			dev_err(&rpiv->spi->dev, "Start conversion dailed\n");
+			dev_err(&priv->spi->dev, "Start conversion dailed\n");
 			goto out;
 		}
-		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_RDATA1)
+		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_RDATA1);
 		if (ret) {
 			dev_err(&priv->spi->dev, "Read ADC failed\n");
 			goto out;
@@ -321,7 +321,7 @@ static int ads1262_probe(struct spi_device *spi)
 
 	ads1262_priv->reset_gpio = devm_gpiod_get_optional(&spi->dev,
 								"reset",
-								GPIO_OUT_LOW);
+								GPIOD_OUT_LOW);
 	if(IS_ERR(ads1262_priv->reset_gpio))
 		dev_info(&spi->dev, "Reset GPIO not defined\n");
 
