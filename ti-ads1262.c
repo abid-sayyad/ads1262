@@ -9,7 +9,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linuc/delay.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/err.h>
