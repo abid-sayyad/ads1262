@@ -157,27 +157,6 @@ static int ads1262_reg_read(void *context, unsigned int reg)
 	return 0;
 }
 
-static int ads1262_init(struct iio_dev *indio_dev)
-{
-	struct ads1262_private *priv = iio_priv(indio_dev);
-	int ret;
-
-	ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
-	if (ret)
-		return ret;
-
-	fsleep(10000);
-
-	/* Setting up the MUX to read the internal temperature sensor*/
-	ads1262_reg_write(priv, ADS1262_REG_INPMUX, ADS1262_DATA_TEMP_SENS);
-	ret = ads1262_reg_read(priv, ADS1262_REG_INPMUX);
-	if (ret)
-		return ret;
-
-	/* Starting the ADC conversions*/
-	return ads1262_write_cmd(priv, ADS1262_CMD_START1);
-}
-
 static int ads1262_reset(struct iio_dev *indio_dev)
 {
 	struct ads1262_reset *priv = iio_priv(indio_dev);
@@ -192,33 +171,6 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int ads1262_read_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int *val, int *val2, long mask)
-{
-	struct ads1262_private *spi = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&spi->lock);
-	ret = ads1262_init(indio_dev);
-
-	switch (mask) {
-	case IIO_CHAN_INFO_RAW:
-		ret = ads1262_write_cmd(spi, ADS1262_CMD_RDATA1);
-		if (ret != 0)
-			return -EINVAL;
-
-		*val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
-				     ADS1262_BITS_PER_SAMPLE - 1);
-		return IIO_VAL_INT;
-	default:
-		return -EINVAL;
-	}
-}
-
-static const struct iio_info ads1262_info = {
-	.read_raw = ads1262_read_raw,
-};
 
 static void ads1262_stop(void *ptr)
 {
@@ -226,6 +178,56 @@ static void ads1262_stop(void *ptr)
 
 	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
 }
+
+static int ads1262_read_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int *val, int *val2, long mask)
+{
+	struct ads1262_private *priv = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&priv->lock);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		ret = ads1262_reg_write(indio_dev, ADS1262_REG_INPMUX,
+					chan->channel);
+		if (ret){
+			dev_err(&priv->spi->dev, "Set ADC CH failes\n");
+			goto out;
+		}
+
+		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_START1);
+		if (ret) {
+			dev_err(&rpiv->spi->dev, "Start conversion dailed\n");
+			goto out;
+		}
+		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_RDATA1)
+		if (ret) {
+			dev_err(&priv->spi->dev, "Read ADC failed\n");
+			goto out;
+		}
+		*val = get_unaligned_be32(priv->rx_buffer[1]);
+
+		ret = ads1262_stop(indio_dev);
+		if (ret) {
+			dev_err(&priv->spi->dev, "Stop conversions failed\n");
+		}
+
+		return IIO_VAL_INT;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+out:
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
+static const struct iio_info ads1262_info = {
+	.read_raw = ads1262_read_raw,
+};
 
 static int ads1262_probe(struct spi_device *spi)
 {
