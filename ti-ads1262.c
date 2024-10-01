@@ -91,7 +91,8 @@ enum ads126_id {
 struct ads1262_chip_info {
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
-}
+};
+
 struct ads1262_private {
 	const struct ads1262_chip_info *chip_info;
 	struct spi_device *spi;
@@ -105,17 +106,17 @@ struct ads1262_private {
 	u32 buffer[ADS1262_MAX_CHANNELS + sizeof(s64)/sizeof(u32)] __aligned(8);
 };
 
-#define ADS1262_CHAN(index)
-{
-	.type = IIO_VOLTAGE
-	.indexed = 1,
-	.channel = index,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-	.scan_index = index,
-	.scan_type = {
-		.sign = 'u',
-		.realbits = 32,
-		.storagebtis = 32,
+#define ADS1262_CHAN(index)				\
+{							\
+	.type = IIO_VOLTAGE				\
+	.indexed = 1,					\
+	.channel = index,				\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.scan_index = index,				\
+	.scan_type = {					\
+		.sign = 'u',				\
+		.realbits = 32,				\
+		.storagebtis = 32,			\
 	},
 }
 
