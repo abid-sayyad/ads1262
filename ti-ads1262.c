@@ -230,6 +230,7 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 {
 	struct ads1262_private *priv = iio_priv(indio_dev);
 	int ret;
+	int val;
 
 	mutex_lock(&priv->lock);
 
@@ -238,7 +239,8 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 		ret = ads1262_reg_write(indio_dev, ADS1262_REG_INPMUX,
 					chan->channel);
 		if (ret){
-			dev_err(&priv->spi->dev, "Set ADC CH failes\n");
+			val = ads1262_reg_read(indio_dev, ADS1262_REG_INPMUX);
+			dev_err(&priv->spi->dev, "Set ADC CH failed %x\n", val);
 			goto out;
 		}
 
@@ -252,7 +254,7 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			dev_err(&priv->spi->dev, "Read ADC failed\n");
 			goto out;
 		}
-		*val = get_unaligned_be32(priv->rx_buffer[1]);
+		*val = get_unaligned_be32(&priv->rx_buffer[1]);
 
 		ret = ads1262_stop(indio_dev);
 		if (ret) {
