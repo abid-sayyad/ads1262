@@ -117,7 +117,7 @@ struct ads1262_private {
 		.sign = 'u',				\
 		.realbits = 32,				\
 		.storagebtis = 32,			\
-	},
+	},						\
 }
 
 static const struct iio_chan_spec ads1262_channels[] = {
