@@ -80,7 +80,16 @@
 /* Single ended AIN0 ADC read*/
 #define ADS1262_DATA_AIN0_SENS  0x0A
 
+enum ads126_id {
+	ADS1262_ID,
+};
+
+struct ads1262_chip_info {
+	const struct iio_chan_spec *channels;
+	unsigned int num_channels;
+}
 struct ads1262_private {
+	const struct ads1262_chip_info *chip_info;
 	struct spi_device *spi;
 	struct gpio_desc *reset_gpio;
 	struct mutex lock;
@@ -88,6 +97,8 @@ struct ads1262_private {
 	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
 	/* Buffer for incoming SPI data*/
 	u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+
+	u32 buffer[ADS1262_MAX_CHANNELS + sizeof(s64)/sizeof(u32)] __aligned(8);
 };
 
 #define ADS1262_CHAN(index)
@@ -115,6 +126,13 @@ static const struct iio_chan_spec ads1262_channels[] = {
 	ADS1262_CHAN(7),
 	ADS1262_CHAN(8),
 	ADS1262_CHAN(9),
+};
+
+static const struct ads1262_chip_info ads1262_chip_info_tbl[] = {
+	[ADS1262_ID] = {
+		.channels = ads1262_channels,
+		.num_channels = ARRAY_SIZE(ads1262_channels),
+	},
 };
 
 static int ads1262_write_cmd(struct ads1262_private *priv, u8 command)
@@ -191,7 +209,6 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 	return 0;
 }
 
-
 static void ads1262_stop(void *ptr)
 {
 	struct ads1262_private *adc = (struct ads1262 *)ptr;
@@ -249,60 +266,94 @@ static const struct iio_info ads1262_info = {
 	.read_raw = ads1262_read_raw,
 };
 
+static irqreturn_t ads1262_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ads1262_private *priv = iio_priv(indio_dev);
+	int scan_index, j=0;
+	int ret;
+
+	for_each_set_bit(scan_index, indio_dev->active_scan_mask,
+			 indio_dev->masklength) {
+		ret = ads1262_reg_write(indio_dev, ADS1262_REG_INPMUX,
+					scan_index);
+		if (ret)
+			dev_err(&priv->spi->dev,
+				"Set ADC conversions failed\n");
+		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_START1);
+		if (ret)
+			dev_err(&priv->spi->dev,
+				"stop ADC conversions fialed\n");
+	 	priv->buffer[j] = ads1262_read(indio_dev);
+		ret = ads1262_stop(indio_dev);
+		if (ret)
+			dev_err(&priv->spi->dev,
+				"stop ADC conversions fialed\n");
+		j++;
+	 }
+
+	iio_push_to_buffers_with_timestamp(indio_dev, priv->buffer,
+	 				    pf->timestamp);
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static int ads1262_probe(struct spi_device *spi)
 {
-	struct ads1262_private *adc;
+	struct ads1262_private *ads1262_priv;
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
-	if (!indio_dev)
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*ads1262_priv));
+	if (!indio_dev == NULL)
 		return -ENOMEM;
 
-	adc = iio_priv(indio_dev);
-	adc->spi = spi;
+	ads1262_priv = iio_priv(indio_dev);
+
+	ads1262_priv->reset_gpio = devm_gpiod_get_optional(&spi->dev,
+								"reset",
+								GPIO_OUT_LOW);
+	if(IS_ERR(ads1262_priv->reset_gpio))
+		dev_info(&spi->dev, "Reset GPIO not defined\n");
+
+	ads1262_priv->spi = spi;
 
 	spi->mode = SPI_MODE_1;
-
 	spi->max_speed_hz = ADS1262_SPI_BUS_SPEED_SLOW;
-
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = ads1262_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ads1262_channels);
+	indio_dev->channels = ads1262_priv->chip_info->channels;
+	indio_dev->num_channels = ads1262_priv->chip_info->num_channels;
 	indio_dev->info = &ads1262_info;
 
-	ret = ads1262_reg_read(adc, ADS1262_REG_ID);
-	if (ret)
-		return ret;
+	mutex_init(&ads1262_priv->lock);
 
-	if (adc->rx_buffer[2] != ADS1262_REG_ID)
-		dev_err_probe(&spi->dev, -EINVAL, "Wrong device ID 0x%x\n",
-			      adc->rx_buffer[2]);
-
-	ret = devm_add_action_or_reset(&spi->dev, ads1262_stop, adc);
-	if (ret)
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+						ads1262_trigger_handler, NULL);
+	if (ret) {
+		dev_err(&spi->dev, "iio triggered buffer setup failed\n");
 		return ret;
+	}
 
-	ret = ads1262_init(indio_dev);
-	if (ret)
-		return ret;
+	ads1262_reset(indio_dev);
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
-static struct spi_device_id ads1262_id_table[] = {
-	{ "ads1262" },
-	{}
+static struct spi_device_id ads126_id[] = {
+	{ "ads1262", ADS1262_ID },
+	{ }
 };
-MODULE_DEVICE_TABLE(spi, ads1262_id_table);
+MODULE_DEVICE_TABLE(spi, ads126_id);
 
 static const struct of_device_id ads1262_of_match[] = {
 	{ .compatible = "ti,ads1262" },
-	{},
+	{ },
 };
 MODULE_DEVICE_TABLE(of, ads1262_of_match);
 
@@ -312,10 +363,10 @@ static struct spi_driver ads1262_driver = {
 		.of_match_table = ads1262_of_match,
 	},
 	.probe = ads1262_probe,
-	.id_table = ads1262_id_table,
+	.id_table = ads126_id,
 };
 module_spi_driver(ads1262_driver)
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sayyad Abid <sayyad.abid16@gmail.com>");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI ADS1262 ADC");
+MODULE_AUTHOR("Sayyad Abid <sayyad.abid16@gmail.com>");
