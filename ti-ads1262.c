@@ -193,6 +193,9 @@ static int ads1262_read(struct iio_dev *indio_dev)
 	priv->data[0] = ADS1262_CMD_RDATA1;
 	memset(&priv->data[1], ADS1262_CMD_NOP, sizeof(priv->data) - 1);
 
+	printk("Data buffer before sending : %x, %x, %x, %x, %x, %x\n",priv->data[0] ,priv->data[1] ,priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);
+
+
 	ret = spi_sync_transfer(priv->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
