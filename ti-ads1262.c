@@ -161,7 +161,6 @@ static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 data)
 	printk("Data in reg_write: %d %d %d", priv->data[0], priv->data[1], priv->data[2]);//dbug
 	int ret = spi_write(priv->spi, &priv->data[0], 3);
 	
-	struct ads1262_private *priv = iio_priv(indio_dev);//debug
 	struct spi_transfer reg_read_xfer = {//debug
 		.tx_buf = priv->data,//debug
 		.rx_buf = priv->data,//debug
