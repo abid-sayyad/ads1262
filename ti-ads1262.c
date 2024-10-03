@@ -315,6 +315,7 @@ static int ads1262_probe(struct spi_device *spi)
 {
 	struct ads1262_private *ads1262_priv;
 	struct iio_dev *indio_dev;
+	const struct spi_device_id *spi_id = spi_get_device_id(spi);
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*ads1262_priv));
@@ -329,6 +330,7 @@ static int ads1262_probe(struct spi_device *spi)
 	if(IS_ERR(ads1262_priv->reset_gpio))
 		dev_info(&spi->dev, "Reset GPIO not defined\n");
 
+	ads1262_priv->chip_info = &ads1262_chip_info_tbl[spi_id->driver_data];
 	ads1262_priv->spi = spi;
 
 	spi->mode = SPI_MODE_1;
