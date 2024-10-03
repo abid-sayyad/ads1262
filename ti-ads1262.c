@@ -96,15 +96,15 @@ struct ads1262_chip_info {
 
 struct ads1262_private {
 	const struct ads1262_chip_info *chip_info;
-	struct spi_device *spi;
 	struct gpio_desc *reset_gpio;
+	struct spi_device *spi;
 	struct mutex lock;
-	/* Buffer for synchronous SPI exchanges (read/write registers)*/
-	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
 	/* Buffer for incoming SPI data*/
-	u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+	//u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 
 	u32 buffer[ADS1262_MAX_CHANNELS + sizeof(s64)/sizeof(u32)] __aligned(8);
+	/* Buffer for synchronous SPI exchanges (read/write registers)*/
+	u8 data[ADS1262_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define ADS1262_CHAN(index)				\
@@ -143,64 +143,21 @@ static const struct ads1262_chip_info ads1262_chip_info_tbl[] = {
 };
 
 static int ads1262_write_cmd(struct iio_dev *indio_dev, u8 command)
-{	s32 data;
-	struct ads1262_private *priv = iio_priv(indio_dev);
-	struct spi_transfer xfer = {
-		.tx_buf = priv->cmd_buffer,
-		.rx_buf = priv->rx_buffer,
-		.len = ADS1262_SPI_RDATA_BUFFER_SIZE,
-		.speed_hz = ADS1262_CLK_RATE_HZ,
-		.delay = {
-			.value = 5,
-			.unit = SPI_DELAY_UNIT_USECS,
-		},
-	};
+{	struct ads1262_private *priv = iio_priv(indio_dev);
 
-	priv->cmd_buffer[0] = command;
+	priv->data[0] = command;
 
-	int ret = spi_sync_transfer(priv->spi, &xfer, 1);
-	data = priv->rx_buffer[1] | priv->rx_buffer[2] |
-		priv->rx_buffer[3] | priv->rx_buffer[4];
-	return ret;
+	return spi_write(priv->spi, &priv->data[0], 1);
 }
 
-static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
+static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 data)
 {
 	struct ads1262_private *priv = context;
 
-	priv->cmd_buffer[0] = ADS1262_CMD_WREG | reg;
-	priv->cmd_buffer[1] = 0;
-	priv->cmd_buffer[2] = val;
-	return spi_write(priv->spi, &priv->cmd_buffer[0], 3);
-}
-
-static int ads1262_reg_read(void *context, unsigned int reg)
-{
-	unsigned int val;
-	struct ads1262_private *priv = context;
-	struct spi_transfer reg_read_xfer = {
-		.tx_buf = priv->cmd_buffer,
-		.rx_buf = priv->cmd_buffer,
-		.len = 3,
-		.speed_hz = ADS1262_CLK_RATE_HZ,
-		.delay = {
-			.value = 5,
-			.unit = SPI_DELAY_UNIT_USECS,
-		},
-	};
-	int ret;
-
-	priv->cmd_buffer[0] = ADS1262_CMD_RREG | reg;
-	priv->cmd_buffer[1] = 0;
-	priv->cmd_buffer[2] = 0;
-
-	ret = spi_sync_transfer(priv->spi, &reg_read_xfer, 1);
-	if (ret)
-		return ret;
-
-	val = priv->cmd_buffer[2];
-
-	return 0;
+	priv->data[0] = ADS1262_CMD_WREG | reg;
+	priv->data[1] = 0;
+	priv->data[2] = data;
+	return spi_write(priv->spi, &priv->data[0], 3);
 }
 
 static int ads1262_reset(struct iio_dev *indio_dev)
@@ -215,13 +172,32 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 		return ads1262_write_cmd(indio_dev, ADS1262_CMD_RESET);
 	}
 	return 0;
-}
+};
 
-static int ads1262_stop(struct iio_dev *indio_dev)
+static int ads1262_read(struct iio_dev *indio_dev)
 {
-	ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
+	struct ads1262_private *priv = iio_priv(indio_dev);
+	int ret;
+	struct spi_transfer t[] = {
+		{
+			.tx_buf = &priv->data[0],
+			.len = 5,
+			.cs_change = 1,
+		}, {
+			.tx_buf = &priv->data[1],
+			.rx_buf = &priv->data[1],
+			.len = 5,
+		},
+	};
 
-	return 0;
+	priv->data[0] = ADS1262_CMD_RDATA1;
+	memset(&priv->data[1], ADS1262_CMD_NOP, sizeof(priv->data) - 1);
+
+	ret = spi_sync_transfer(priv->spi, t, ARRAY_SIZE(t));
+	if (ret < 0)
+		return ret;
+	
+	return get_unaligned_be32(&priv->data[2]);
 }
 
 static int ads1262_read_raw(struct iio_dev *indio_dev,
@@ -230,18 +206,14 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 {
 	struct ads1262_private *priv = iio_priv(indio_dev);
 	int ret;
-	int reg;
 
 	mutex_lock(&priv->lock);
-
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = ads1262_reg_write(indio_dev, ADS1262_REG_INPMUX,
 					chan->channel);
 		if (ret){
-			ret = ads1262_reg_read(indio_dev, ADS1262_REG_INPMUX);
-			reg = priv->cmd_buffer[2];
-			dev_err(&priv->spi->dev, "Set ADC CH failed %x\n", reg);
+			dev_err(&priv->spi->dev, "Set ADC CH failed \n");
 			goto out;
 		}
 
@@ -250,16 +222,17 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			dev_err(&priv->spi->dev, "Start conversion dailed\n");
 			goto out;
 		}
-		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_RDATA1);
+		ret = ads1262_read(indio_dev);
 		if (ret) {
 			dev_err(&priv->spi->dev, "Read ADC failed\n");
 			goto out;
 		}
-		*val = get_unaligned_be32(&priv->rx_buffer[1]);
+		*val = ret;
 
-		ret = ads1262_stop(indio_dev);
+		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
 		if (ret) {
 			dev_err(&priv->spi->dev, "Stop conversions failed\n");
+			goto out;
 		}
 
 		return IIO_VAL_INT;
@@ -291,13 +264,13 @@ static irqreturn_t ads1262_trigger_handler(int irq, void *p)
 					scan_index);
 		if (ret)
 			dev_err(&priv->spi->dev,
-				"Set ADC conversions failed\n");
+				"Set ADC CH failed\n");
 		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_START1);
 		if (ret)
 			dev_err(&priv->spi->dev,
 				"stop ADC conversions fialed\n");
-	 	priv->buffer[j] = ads1262_write_cmd(indio_dev, ADS1262_CMD_RDATA1);
-		ret = ads1262_stop(indio_dev);
+	 	priv->buffer[j] = ads1262_read(indio_dev);
+		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
 		if (ret)
 			dev_err(&priv->spi->dev,
 				"stop ADC conversions fialed\n");
@@ -325,20 +298,16 @@ static int ads1262_probe(struct spi_device *spi)
 	ads1262_priv = iio_priv(indio_dev);
 
 	ads1262_priv->reset_gpio = devm_gpiod_get_optional(&spi->dev,
-								"reset",
-								GPIOD_OUT_LOW);
+							   "reset",
+							   GPIOD_OUT_LOW);
 	if(IS_ERR(ads1262_priv->reset_gpio))
 		dev_info(&spi->dev, "Reset GPIO not defined\n");
 
 	ads1262_priv->chip_info = &ads1262_chip_info_tbl[spi_id->driver_data];
+	
 	ads1262_priv->spi = spi;
 
-	spi->mode = SPI_MODE_1;
-	spi->max_speed_hz = ADS1262_SPI_BUS_SPEED_SLOW;
-	spi_set_drvdata(spi, indio_dev);
-
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->name = spi_id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ads1262_priv->chip_info->channels;
 	indio_dev->num_channels = ads1262_priv->chip_info->num_channels;
