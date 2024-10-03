@@ -152,7 +152,7 @@ static int ads1262_write_cmd(struct iio_dev *indio_dev, u8 command)
 
 static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 data)
 {
-	struct ads1262_private *priv = context;
+	struct ads1262_private *priv = iio_priv(indio_dev);
 
 	priv->data[0] = ADS1262_CMD_WREG | reg;
 	priv->data[1] = 0;
