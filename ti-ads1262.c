@@ -202,12 +202,12 @@ static int ads1262_read(struct iio_dev *indio_dev)
 	struct spi_transfer t[] = {
 		{
 			.tx_buf = &priv->data[0],
+			.rx_buf = &priv->buffer,
 			.len = 5,
-			.cs_change = 1,
-		}, {
-			.tx_buf = &priv->data[1],
-			.rx_buf = &priv->data[1],
-			.len = 5,
+			.delay = {
+				.value = 5,
+				.unit = SPI_DELAY_UNIT_USECS,
+			},
 		},
 	};
 
