@@ -133,7 +133,7 @@ static const struct iio_chan_spec ads1262_channels[] = {
 	ADS1262_CHAN(7),
 	ADS1262_CHAN(8),
 	ADS1262_CHAN(9),
-	ADS1262_CHAN(186),
+	ADS1262_CHAN(BA),
 };
 
 static const struct ads1262_chip_info ads1262_chip_info_tbl[] = {
