@@ -193,16 +193,16 @@ static int ads1262_read(struct iio_dev *indio_dev)
 	priv->data[0] = ADS1262_CMD_RDATA1;
 	memset(&priv->data[1], ADS1262_CMD_NOP, sizeof(priv->data) - 1);
 
-	printk("Data buffer before sending : %x, %x, %x, %x, %x, %x\n",priv->data[0] ,priv->data[1] ,priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);
+	printk("Data buffer before sending : %x, %x, %x, %x, %x, %x\n",priv->data[0] ,priv->data[1] ,priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);//debug
 
 
 	ret = spi_sync_transfer(priv->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
 
-	printk("Data incomming : %x, %x, %x, %x\n",priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);
-	u32 data_debug = priv->data[2] | priv->data[3] | priv->data[4] | priv->data[5];
-	printk("Data 0x%08x\n",data_debug);
+	printk("Data incomming :  %x, %x, %x, %x, %x, %x\n",priv->data[0] ,priv->data[1] ,priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);//debug
+	u32 data_debug = priv->data[2] | priv->data[3] | priv->data[4] | priv->data[5];//debug
+	printk("Data 0x%08x\n",data_debug);//debug
 	
 	return get_unaligned_be32(&priv->data[2]);
 }
@@ -278,6 +278,7 @@ static irqreturn_t ads1262_trigger_handler(int irq, void *p)
 			dev_err(&priv->spi->dev,
 				"stop ADC conversions fialed\n");
 	 	priv->buffer[j] = ads1262_read(indio_dev);
+		printk("irq trigger buffer %d", priv->buffer[j]);//debug
 		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
 		if (ret)
 			dev_err(&priv->spi->dev,
