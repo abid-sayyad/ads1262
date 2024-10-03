@@ -163,7 +163,7 @@ static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 buf)
 	
 	struct spi_transfer reg_read_xfer = {//debug
 		.tx_buf = priv->buf,//debug
-		.rx_buf = priv->buf,//debug
+		.rx_buf = priv->buffer,//debug
 		.len = 3,//debug
 		.speed_hz = ADS1262_CLK_RATE_HZ,//debug
 		.delay = {//debug
@@ -258,7 +258,7 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 		}
 		*val = ret;
 		mutex_unlock(&priv->lock);
-		
+
 		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
 		if (ret) {
 			dev_err(&priv->spi->dev, "Stop conversions failed\n");
