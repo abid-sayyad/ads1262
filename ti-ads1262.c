@@ -133,7 +133,6 @@ static const struct iio_chan_spec ads1262_channels[] = {
 	ADS1262_CHAN(7),
 	ADS1262_CHAN(8),
 	ADS1262_CHAN(9),
-	ADS1262_CHAN(186),
 };
 
 static const struct ads1262_chip_info ads1262_chip_info_tbl[] = {
@@ -239,7 +238,7 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&priv->lock);
 		ret = ads1262_reg_write(indio_dev, ADS1262_REG_INPMUX,
-					chan->channel);
+					(((chan->channel)<<4)|0x0A));
 		if (ret){
 			dev_err(&priv->spi->dev, "Set ADC CH failed \n");
 			goto out;
