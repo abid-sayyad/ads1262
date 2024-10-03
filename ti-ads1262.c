@@ -235,9 +235,9 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 	struct ads1262_private *priv = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&priv->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		mutex_lock(&priv->lock);
 		ret = ads1262_reg_write(indio_dev, ADS1262_REG_INPMUX,
 					chan->channel);
 		if (ret){
@@ -257,7 +257,8 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 		*val = ret;
-
+		mutex_unlock(&priv->lock);
+		
 		ret = ads1262_write_cmd(indio_dev, ADS1262_CMD_STOP1);
 		if (ret) {
 			dev_err(&priv->spi->dev, "Stop conversions failed\n");
