@@ -197,8 +197,8 @@ static int ads1262_read(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	printk("Data incomming : %x, %x, %x, %x\n",data[2] , data[3] , data[4] , data[5]);
-	u32 data_debug = data[2] | data[3] | data[4] | data[5];
+	printk("Data incomming : %x, %x, %x, %x\n",priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);
+	u32 data_debug = priv->data[2] | priv->data[3] | priv->data[4] | priv->data[5];
 	printk("Data 0x%08x\n",data_debug);
 	
 	return get_unaligned_be32(&priv->data[2]);
