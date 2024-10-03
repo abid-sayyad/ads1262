@@ -196,6 +196,10 @@ static int ads1262_read(struct iio_dev *indio_dev)
 	ret = spi_sync_transfer(priv->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
+
+	printk("Data incomming : %x, %x, %x, %x\n",data[2] , data[3] , data[4] , data[5]);
+	u32 data_debug = data[2] | data[3] | data[4] | data[5];
+	printk("Data 0x%08x\n",data_debug);
 	
 	return get_unaligned_be32(&priv->data[2]);
 }
