@@ -157,7 +157,28 @@ static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 data)
 	priv->data[0] = ADS1262_CMD_WREG | reg;
 	priv->data[1] = 0;
 	priv->data[2] = data;
-	return spi_write(priv->spi, &priv->data[0], 3);
+	printk("Data in reg_write: %d %d %d", priv->data[0], priv->data[1], priv->data[2]);//dbug
+	int ret = spi_write(priv->spi, &priv->data[0], 3);
+	
+	struct ads1262_private *priv = iio_priv(indio_dev);//debug
+	struct spi_transfer reg_read_xfer = {//debug
+		.tx_buf = priv->data,//debug
+		.rx_buf = priv->data,//debug
+		.len = 3,//debug
+		.speed_hz = ADS1262_CLK_RATE_HZ,//debug
+		.delay = {//debug
+			.value = 5,//debug
+			.unit = SPI_DELAY_UNIT_USECS,//debug
+		},//debug
+	};//debug
+	priv->data[0] = ADS1262_CMD_RREG | reg;//debug
+	priv->data[1] = 0;//debug
+	priv->data[2] = 0;//debug
+//debug
+	spi_sync_transfer(priv->spi, &reg_read_xfer, 1);//debug
+	printk("after sending the req_write, reading them: %d %d %d", priv->data[0], priv->data[1], priv->data[2]);//debug
+
+	return ret;
 }
 
 static int ads1262_reset(struct iio_dev *indio_dev)
