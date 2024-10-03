@@ -102,9 +102,9 @@ struct ads1262_private {
 	/* Buffer for incoming SPI data*/
 	//u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 
-	u32 buffer[ADS1262_MAX_CHANNELS + sizeof(s64)/sizeof(u32)] __aligned(8);
+	__be16 buffer[ADS1262_MAX_CHANNELS + sizeof(s64)/sizeof(u32)] __aligned(8);
 	/* Buffer for synchronous SPI exchanges (read/write registers)*/
-	u8 data[ADS1262_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+	u8 buf[ADS1262_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define ADS1262_CHAN(index)				\
@@ -146,24 +146,24 @@ static const struct ads1262_chip_info ads1262_chip_info_tbl[] = {
 static int ads1262_write_cmd(struct iio_dev *indio_dev, u8 command)
 {	struct ads1262_private *priv = iio_priv(indio_dev);
 
-	priv->data[0] = command;
+	priv->buf[0] = command;
 
-	return spi_write(priv->spi, &priv->data[0], 1);
+	return spi_write(priv->spi, &priv->buf[0], 1);
 }
 
-static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 data)
+static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 buf)
 {
 	struct ads1262_private *priv = iio_priv(indio_dev);
 
-	priv->data[0] = ADS1262_CMD_WREG | reg;
-	priv->data[1] = 0;
-	priv->data[2] = data;
-	printk("Data in reg_write: %d %d %d", priv->data[0], priv->data[1], priv->data[2]);//dbug
-	int ret = spi_write(priv->spi, &priv->data[0], 3);
+	priv->buf[0] = ADS1262_CMD_WREG | reg;
+	priv->buf[1] = 0;
+	priv->buf[2] = buf;
+	printk("Data in reg_write: %d %d %d", priv->buf[0], priv->buf[1], priv->buf[2]);//dbug
+	int ret = spi_write(priv->spi, &priv->buf[0], 3);
 	
 	struct spi_transfer reg_read_xfer = {//debug
-		.tx_buf = priv->data,//debug
-		.rx_buf = priv->data,//debug
+		.tx_buf = priv->buf,//debug
+		.rx_buf = priv->buf,//debug
 		.len = 3,//debug
 		.speed_hz = ADS1262_CLK_RATE_HZ,//debug
 		.delay = {//debug
@@ -171,12 +171,12 @@ static int ads1262_reg_write(struct iio_dev *indio_dev, u8 reg, u8 data)
 			.unit = SPI_DELAY_UNIT_USECS,//debug
 		},//debug
 	};//debug
-	priv->data[0] = ADS1262_CMD_RREG | reg;//debug
-	priv->data[1] = 0;//debug
-	priv->data[2] = 0;//debug
+	priv->buf[0] = ADS1262_CMD_RREG | reg;//debug
+	priv->buf[1] = 0;//debug
+	priv->buf[2] = 0;//debug
 //debug
 	spi_sync_transfer(priv->spi, &reg_read_xfer, 1);//debug
-	printk("after sending the req_write, reading them: %d %d %d", priv->data[0], priv->data[1], priv->data[2]);//debug
+	printk("after sending the req_write, reading them: %d %d %d", priv->buf[0], priv->buf[1], priv->buf[2]);//debug
 
 	return ret;
 }
@@ -201,7 +201,7 @@ static int ads1262_read(struct iio_dev *indio_dev)
 	int ret;
 	struct spi_transfer t[] = {
 		{
-			.tx_buf = &priv->data[0],
+			.tx_buf = &priv->buf[0],
 			.rx_buf = &priv->buffer,
 			.len = 5,
 			.delay = {
@@ -211,21 +211,21 @@ static int ads1262_read(struct iio_dev *indio_dev)
 		},
 	};
 
-	priv->data[0] = ADS1262_CMD_RDATA1;
-	memset(&priv->data[1], ADS1262_CMD_NOP, sizeof(priv->data) - 1);
+	priv->buf[0] = ADS1262_CMD_RDATA1;
+	memset(&priv->buf[1], ADS1262_CMD_NOP, sizeof(priv->buf) - 1);
 
-	printk("Data buffer before sending : %x, %x, %x, %x, %x, %x\n",priv->data[0] ,priv->data[1] ,priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);//debug
+	printk("Data buffer before sending : %x, %x, %x, %x, %x, %x\n",priv->buf[0] ,priv->buf[1] ,priv->buf[2] , priv->buf[3] , priv->buf[4] , priv->buf[5]);//debug
 
 
 	ret = spi_sync_transfer(priv->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
 
-	printk("Data incomming :  %x, %x, %x, %x, %x, %x\n",priv->data[0] ,priv->data[1] ,priv->data[2] , priv->data[3] , priv->data[4] , priv->data[5]);//debug
-	u32 data_debug = priv->data[2] | priv->data[3] | priv->data[4] | priv->data[5];//debug
-	printk("Data 0x%08x\n",data_debug);//debug
+	printk("Data incomming :  %x, %x, %x, %x, %x, %x\n",priv->buf[0] ,priv->buf[1] ,priv->buf[2] , priv->buf[3] , priv->buf[4] , priv->buf[5]);//debug
+	u32 buf_debug = priv->buf[2] | priv->buf[3] | priv->buf[4] | priv->buf[5];//debug
+	printk("Data 0x%08x\n",buf_debug);//debug
 	
-	return get_unaligned_be32(&priv->data[2]);
+	return get_unaligned_be32(&priv->buf[2]);
 }
 
 static int ads1262_read_raw(struct iio_dev *indio_dev,
