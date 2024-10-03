@@ -230,7 +230,7 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 		ret = ads1262_read(indio_dev);
-		if (ret) {
+		if (ret<0) {
 			dev_err(&priv->spi->dev, "Read ADC failed\n");
 			printk("ADC read fail: %d\n", ret);
 			goto out;
