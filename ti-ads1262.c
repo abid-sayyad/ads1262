@@ -190,6 +190,10 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 		gpiod_set_value(priv->reset_gpio, 1);
 	} else {
 		return ads1262_write_cmd(indio_dev, ADS1262_CMD_RESET);
+		
+		/*8 fCLK cycles to ensure everything is settled after reset
+		 * 8 cycles of fCLK is approximately 1.085 us, taking the ceil*/
+		fsleep(2);
 	}
 	return 0;
 };
