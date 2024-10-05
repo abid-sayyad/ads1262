@@ -33,6 +33,20 @@
 #define ADS1262_REG_ID          0x00
 #define ADS1262_REG_INPMUX      0x06
 
+/*ADC Channels*/
+ADS1262_CHAN_AIN0		0x1A
+ADS1262_CHAN_AIN0               0x2A
+ADS1262_CHAN_AIN0               0x3A
+ADS1262_CHAN_AIN0               0x4A
+ADS1262_CHAN_AIN0               0x5A
+ADS1262_CHAN_AIN0               0x6A
+ADS1262_CHAN_AIN0               0x7A
+ADS1262_CHAN_AIN0               0x8A
+ADS1262_CHAN_AIN0               0x9A
+ADS1262_CHAN_AIN0               0xAA
+ADS1262_CHAN_AIN0               0xBA
+ADS1262_CHAN_AIN0               0xCA
+
 /* ADS1262_SPECS */
 #define ADS1262_MAX_CHANNELS    11
 #define ADS1262_BITS_PER_SAMPLE 32
