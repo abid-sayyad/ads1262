@@ -8,7 +8,7 @@
 			status = "disabled";
 		};
 	};
-		
+
 	fragment@1 {
 		target = <&spi0>;
 		__overlay__ {
@@ -23,6 +23,7 @@
 				spi-bits-per-word = <8>;
 				spi-cpha;
 				status = "okay";
+				drdy-gpio = <&gpio 16 0>;
 			};
 		};
 	};
