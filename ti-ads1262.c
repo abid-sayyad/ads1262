@@ -33,7 +33,6 @@
 #define ADS1262_REG_ID          0x00
 #define ADS1262_REG_INPMUX      0x06
 
-
 /* ADS1262_SPECS */
 #define ADS1262_MAX_CHANNELS    11
 #define ADS1262_BITS_PER_SAMPLE 32
@@ -70,18 +69,18 @@ struct ads1262_private {
 	u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
 };
 
-#define ADS1262_CHAN(index)					\
-{								\
-	.type = IIO_VOLTAGE,					\
-	.indexed = 1,						\
-	.channel = index,					\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
-	.scan_index = index,					\
-	.scan_type = {						\
-		.sign = 's',					\
-		.realbits = 32,					\
-		.storagebits = 32,				\
-	},							\
+#define ADS1262_CHAN(index)				\
+{							\
+	.type = IIO_VOLTAGE,				\
+	.indexed = 1,					\
+	.channel = index,				\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.scan_index = index,				\
+	.scan_type = {					\
+		.sign = 's',				\
+		.realbits = 32,				\
+		.storagebits = 32,			\
+	},						\
 }
 
 static const struct iio_chan_spec ads1262_channels[] = {
@@ -160,9 +159,9 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 	struct ads1262_private *priv = iio_priv(indio_dev);
 
 	if(!priv->reset_gpio){
-	//	gpiod_set_value(priv->reset_gpio, 0);
-	//	udelay(200);
-	//	gpiod_set_value(priv->reset_gpio, 1);
+		gpiod_set_value(priv->reset_gpio, 0);
+		udelay(200);
+		gpiod_set_value(priv->reset_gpio, 1);
 	} else {
 		return ads1262_write_cmd(priv, ADS1262_CMD_RESET);
 	}
@@ -176,17 +175,15 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
 	ads1262_reset(indio_dev);
 
-	//ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
-	//if (ret)
-	//	return ret;
+	ret = ads1262_write_cmd(priv, ADS1262_CMD_RESET);
+	if (ret)
+		return ret;
 
 	fsleep(10000);
 
 	/* Setting up the MUX to read the internal temperature sensor*/
-
 	ads1262_reg_write(priv, ADS1262_REG_INPMUX, 0xBA);
 	ret = ads1262_reg_read(priv, ADS1262_REG_INPMUX);
-	printk("The Input MUX is set to: %d ",priv->cmd_buffer[2]);
 	if (ret)
 		return ret;
 
@@ -212,7 +209,6 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 
 		data = spi->rx_buffer[1] | spi->rx_buffer[2] |
 			spi->rx_buffer[3] | spi->rx_buffer[4];
-		printk("data from ADC: %d\n buffer vlaues: %d %d %d %d %d %d", data, spi->rx_buffer[0] ,spi->rx_buffer[1] ,spi->rx_buffer[2] ,spi->rx_buffer[3] ,spi->rx_buffer[4],spi->rx_buffer[5]);
 		*val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
 				     ADS1262_BITS_PER_SAMPLE - 1);
 		return IIO_VAL_INT;
@@ -237,7 +233,6 @@ static int ads1262_probe(struct spi_device *spi)
 	struct ads1262_private *adc;
 	struct iio_dev *indio_dev;
 	int ret;
-	printk("Inside probe function");
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
