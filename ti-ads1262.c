@@ -32,6 +32,8 @@
 /* Registers */
 #define ADS1262_REG_ID          0x00
 #define ADS1262_REG_INPMUX      0x06
+#define ADS1262_REG_MODE0	0x03
+#define ADS1262_REG_POWER	0x01
 
 /* ADS1262_SPECS */
 #define ADS1262_MAX_CHANNELS    11
@@ -63,6 +65,7 @@
 struct ads1262_private {
 	struct spi_device *spi;
 	struct gpio_desc *reset_gpio;
+	u8 prev_channel;
 	/* Buffer for synchronous SPI exchanges (read/write registers)*/
 	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
 	/* Buffer for incoming SPI data*/
@@ -78,8 +81,9 @@ struct ads1262_private {
 	.scan_index = index,				\
 	.scan_type = {					\
 		.sign = 's',				\
-		.realbits = 32,				\
+		.realbits = ADS1262_BITS_PER_SAMPLE,	\
 		.storagebits = 32,			\
+		.endianness = IIO_CPU			\
 	},						\
 }
 
@@ -181,14 +185,20 @@ static int ads1262_init(struct iio_dev *indio_dev)
 
 	fsleep(10000);
 
-	/* Setting up the MUX to read the internal temperature sensor*/
-	ads1262_reg_write(priv, ADS1262_REG_INPMUX, 0xBA);
-	ret = ads1262_reg_read(priv, ADS1262_REG_INPMUX);
-	if (ret)
-		return ret;
+	ads1262_reg_write(priv, ADS1262_REG_POWER, 0x01);
+	ads1262_reg_read(priv, ADS1262_REG_POWER);
+	printk("read mode, POWER REG VAL: %d", priv->cmd_buffer[2]);
 
-	/* Starting the ADC conversions*/
-	return ads1262_write_cmd(priv, ADS1262_CMD_START1);
+	ads1262_reg_write(priv, ADS1262_REG_MODE0, 0x40);
+	ads1262_reg_read(priv, ADS1262_REG_MODE0);
+	printk("read mode: %d", priv->cmd_buffer[2]);
+
+	ads1262_reg_write(priv, ADS1262_REG_INPMUX, 0xBA);
+	ads1262_reg_read(priv, ADS1262_REG_INPMUX);
+	printk("INPMUX inside init: %d", priv->cmd_buffer[2]);
+	priv->prev_channel = priv->cmd_buffer[2];
+	printk("init done");
+	return ret;
 }
 
 static int ads1262_read_raw(struct iio_dev *indio_dev,
@@ -196,19 +206,30 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct ads1262_private *spi = iio_priv(indio_dev);
-	s32 data;
+	u32 data;
 	int ret;
 
 	//ret = ads1262_init(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = ads1262_write_cmd(spi, ADS1262_CMD_RDATA1);
-		if (ret != 0)
-			return -EINVAL;
+
+		if(0xBA != spi->prev_channel){
+		/* Setting up the MUX to read the internal temperature sensor*/
+		ads1262_reg_write(spi, ADS1262_REG_INPMUX, 0xBA);
+		ret = ads1262_reg_read(spi, ADS1262_REG_INPMUX);
+		if (ret)
+			return ret;
+
+		printk("INPMUX from read_raw: %d", spi->cmd_buffer[2]);
+		}
+
+		/* Starting the ADC conversions*/
+		ads1262_write_cmd(spi, ADS1262_CMD_START1);
 
 		data = spi->rx_buffer[1] | spi->rx_buffer[2] |
 			spi->rx_buffer[3] | spi->rx_buffer[4];
+		printk("Data: %d bytes: %d %d %d %d %d %d ", data, spi->rx_buffer[0], spi->rx_buffer[1], spi->rx_buffer[2], spi->rx_buffer[3], spi->rx_buffer[4], spi->rx_buffer[5]);
 		*val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
 				     ADS1262_BITS_PER_SAMPLE - 1);
 		return IIO_VAL_INT;
