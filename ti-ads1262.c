@@ -24,16 +24,20 @@
 /* Commands */
 #define ADS1262_CMD_RESET       0x06
 #define ADS1262_CMD_START1      0x08
+#define ADS1262_CMD_STOP1       0x0A
 #define ADS1262_CMD_RDATA1      0x12
 #define ADS1262_CMD_RREG        0x20
 #define ADS1262_CMD_WREG        0x40
-#define ADS1262_CMD_STOP1       0x0A
 
 /* Registers */
 #define ADS1262_REG_ID          0x00
-#define ADS1262_REG_INPMUX      0x06
-#define ADS1262_REG_MODE0	0x03
 #define ADS1262_REG_POWER	0x01
+#define ADS1262_REG_MODE0	0x03
+#define ADS1262_REG_MODE2	0x05
+#define ADS1262_REG_INPMUX      0x06
+
+/* Masks*/
+#define ADS1262_MASK_MODE2_DR 	GENMASK(4,0)
 
 /* ADS1262_SPECS */
 #define ADS1262_MAX_CHANNELS    11
@@ -41,6 +45,8 @@
 #define ADS1262_CLK_RATE_HZ     7372800
 #define ADS1262_CLOCKS_TO_USECS(x)  \
 	(DIV_ROUND_UP((x) * MICROHZ_PER_HZ, ADS1262_CLK_RATE_HZ))
+#define ADS1262_VOLTAGE_INT_REF_uV 2500000
+#define ADS1262_TEMP_SENSITIVITY_uV_per_C 420
 
 /* The Read/Write commands require 4 tCLK to encode and decode, for speeds
  * 2x the clock rate, these commands would require extra time between the
@@ -87,6 +93,20 @@ struct ads1262_private {
 	},						\
 }
 
+#define ADS1262_TEMP_CHAN(index)					\
+{									\
+	.type = IIO_TEMP,						\
+	.indexed = 1,							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_SAMP_FREQ),\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = ADS1262_BITS_PER_SAMPLE,			\
+		.storagebits = 32,					\
+		.endianness = IIO_BE,					\
+	},								\
+}
+
 static const struct iio_chan_spec ads1262_channels[] = {
 	ADS1262_CHAN(0),
 	ADS1262_CHAN(1),
@@ -98,6 +118,10 @@ static const struct iio_chan_spec ads1262_channels[] = {
 	ADS1262_CHAN(7),
 	ADS1262_CHAN(8),
 	ADS1262_CHAN(9),
+};
+
+static const struct iio_chan_spec ads1262_temp_channels[] = {
+	ADS1262_TEMP_CHAN(11),
 };
 
 static int ads1262_write_cmd(struct ads1262_private *priv, u8 command)
@@ -186,19 +210,26 @@ static int ads1262_init(struct iio_dev *indio_dev)
 	fsleep(10000);
 
 	ads1262_reg_write(priv, ADS1262_REG_POWER, 0x01);
-	ads1262_reg_read(priv, ADS1262_REG_POWER);
-	printk("read mode, POWER REG VAL: %d", priv->cmd_buffer[2]);
 
+	/* Setting the ADC to one-shot conversion mode*/
 	ads1262_reg_write(priv, ADS1262_REG_MODE0, 0x40);
-	ads1262_reg_read(priv, ADS1262_REG_MODE0);
-	printk("read mode: %d", priv->cmd_buffer[2]);
 
 	ads1262_reg_write(priv, ADS1262_REG_INPMUX, 0xBA);
-	ads1262_reg_read(priv, ADS1262_REG_INPMUX);
-	printk("INPMUX inside init: %d", priv->cmd_buffer[2]);
 	priv->prev_channel = priv->cmd_buffer[2];
-	printk("init done");
+
 	return ret;
+}
+
+static int ads1262_get_samp_freq(struct ads1262_private *priv, int *val)
+{
+	unsigned long samp_freq;
+
+	ads1262_reg_read(priv, ADS1262_REG_MODE2);
+
+	samp_freq = priv->cmd_buffer[2];
+	*val = (samp_freq & ADS1262_MASK_MODE2_DR);
+
+	return IIO_VAL_INT;
 }
 
 static int ads1262_read_raw(struct iio_dev *indio_dev,
@@ -206,33 +237,38 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct ads1262_private *spi = iio_priv(indio_dev);
-	u32 data;
 	int ret;
-
-	//ret = ads1262_init(indio_dev);
+	u64 tmep;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		switch(chan->type){
+		case IIO_VOLTAGE:
+			if(0xBA != spi->prev_channel){
+				/* Setting up the MUX to read the internal temperature sensor*/
+				ads1262_reg_write(spi, ADS1262_REG_INPMUX, 0xBA);
+				ret = ads1262_reg_read(spi, ADS1262_REG_INPMUX);
+				if (ret)
+					return ret;
 
-		if(0xBA != spi->prev_channel){
-		/* Setting up the MUX to read the internal temperature sensor*/
-		ads1262_reg_write(spi, ADS1262_REG_INPMUX, 0xBA);
-		ret = ads1262_reg_read(spi, ADS1262_REG_INPMUX);
-		if (ret)
-			return ret;
+				printk("INPMUX from read_raw: %d", spi->cmd_buffer[2]);
+			}
 
-		printk("INPMUX from read_raw: %d", spi->cmd_buffer[2]);
-		}
+			/* Starting the ADC conversions*/
+			ads1262_write_cmd(spi, ADS1262_CMD_START1);
 
-		/* Starting the ADC conversions*/
-		ads1262_write_cmd(spi, ADS1262_CMD_START1);
+			printk("bytes: %d %d %d %d %d %d ", spi->rx_buffer[0],\
+						 spi->rx_buffer[1], spi->rx_buffer[2], spi->rx_buffer[3],\
+						 spi->rx_buffer[4], spi->rx_buffer[5]);
+			*val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
+					     ADS1262_BITS_PER_SAMPLE - 1);
+			return IIO_VAL_INT;
 
-		data = spi->rx_buffer[1] | spi->rx_buffer[2] |
-			spi->rx_buffer[3] | spi->rx_buffer[4];
-		printk("Data: %d bytes: %d %d %d %d %d %d ", data, spi->rx_buffer[0], spi->rx_buffer[1], spi->rx_buffer[2], spi->rx_buffer[3], spi->rx_buffer[4], spi->rx_buffer[5]);
-		*val = sign_extend64(get_unaligned_be32(spi->rx_buffer + 1),
-				     ADS1262_BITS_PER_SAMPLE - 1);
-		return IIO_VAL_INT;
+		case IIO_TEMP:
+			temp = ADS1262_TEMP_SENSITIVITY_uV
+
+	case IIO_CHAN_INFO_SAMP_FREQ:
+			return ads1262_get_samp_freq(spi, val);
 	default:
 		return -EINVAL;
 	}
@@ -242,7 +278,7 @@ static const struct iio_info ads1262_info = {
 	.read_raw = ads1262_read_raw,
 };
 
-static void ads1262_stop(void *ptr)
+static void ads1262_stop(struct iio_dev *ptr)
 {
 	struct ads1262_private *adc = (struct ads1262_private *)ptr;
 
