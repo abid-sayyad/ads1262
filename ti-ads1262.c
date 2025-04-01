@@ -265,7 +265,11 @@ static int ads1262_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT;
 
 		case IIO_TEMP:
-			temp = ADS1262_TEMP_SENSITIVITY_uV
+			temp = ADS1262_VOLTAGE_INT_REF_uV * MILLI;
+			temp /= ADS1262_TEMP_SENSITIVITY_uV_per_C;
+			*val = temp;
+			*val2 = chan->scan_type.realbits;
+			return IIO_VAL_FRACTIONAL_LOG2;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 			return ads1262_get_samp_freq(spi, val);
