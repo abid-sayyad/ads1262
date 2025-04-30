@@ -8,6 +8,17 @@ config TI_ADS1262
 	  Say yes here to build support for Texas Instruments ADS1262
 	  11 channel ADC with internal temperature sensor.
 
+	  The ADS1262 is a 32-bit, 38-kSPS, precision ADC with a programmable gain
+	  amplifier (PGA) and internal voltage reference. It features:
+	  - 11 single-ended or 5 differential input channels
+	  - Internal temperature sensor
+	  - Programmable gain amplifier (PGA) with gains from 1 to 32
+	  - Internal voltage reference
+	  - GPIO pins for control and monitoring
+	  - SPI interface
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called ads1262.
+
+	  If unsure, say N.
 
