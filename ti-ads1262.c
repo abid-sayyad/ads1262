@@ -362,10 +362,6 @@ static int ads1262_read(struct ads1262_private *priv,
 
 	usleep_range(1000, 2000);
 
-	printk("bytes: %d %d %d %d %d %d ", priv->rx_buffer[0],
-	       priv->rx_buffer[1], priv->rx_buffer[2],
-	       priv->rx_buffer[3], priv->rx_buffer[4], priv->rx_buffer[5]);
-
 	*val = sign_extend64(get_unaligned_be32(priv->rx_buffer + 1),
 			     ADS1262_BITS_PER_SAMPLE - 1);
 
