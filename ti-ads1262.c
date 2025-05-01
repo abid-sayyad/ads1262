@@ -9,18 +9,13 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/init.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/triggered_buffer.h>
-#include <linux/iio/trigger_consumer.h>
-
-#include <asm/unaligned.h>
 
 /* Commands */
 #define ADS1262_CMD_RESET		0x06
@@ -38,29 +33,12 @@
 #define ADS1262_REG_MODE1		0x04
 #define ADS1262_REG_MODE2		0x05
 #define ADS1262_REG_INPMUX		0x06
-#define ADS1262_REG_OFCAL0		0x07
-#define ADS1262_REG_OFCAL1		0x08
-#define ADS1262_REG_OFCAL2		0x09
-#define ADS1262_REG_FSCAL0		0x0A
-#define ADS1262_REG_FSCAL1		0x0B
-#define ADS1262_REG_FSCAL2		0x0C
-#define ADS1262_REG_IDACMUX		0x0D
-#define ADS1262_REG_IDACMAG		0x0E
-#define ADS1262_REG_REFMUX		0x0F
-#define ADS1262_REG_TDACP		0x10
-#define ADS1262_REG_TDACN		0x11
-#define ADS1262_REG_GPIOCON		0x12
-#define ADS1262_REG_GPIODIR		0x13
-#define ADS1262_REG_GPIODAT		0x14
 
 /* Configurations */
 #define ADS1262_INTREF_ENABLE		0x01
 #define ADS1262_MODE0_ONE_SHOT		0x40
 #define ADS1262_MODE2_PGA_EN		0x00
 #define ADS1262_MODE2_PGA_BYPASS	BIT(7)
-#define ADS1262_MODE2_PGA_1		0x00
-#define ADS1262_MODE2_DR_20SPS		BIT(2)
-
 
 /* Masks */
 #define ADS1262_MASK_MODE2_DR		GENMASK(4, 0)
@@ -91,11 +69,6 @@
  */
 #define ADS1262_SPI_RDATA_BUFFER_SIZE	6
 
-/*Single ended Internal tempsensor ADC read*/
-#define ADS1262_DATA_TEMP_SENS		0xBA
-/* Single ended AIN0 ADC read*/
-#define ADS1262_DATA_AIN0_SENS		0x0A
-
 #define MILLI				1000
 
 /**
@@ -104,10 +77,7 @@
  * @reset_gpio: GPIO descriptor for reset pin
  * @prev_channel: Previously selected channel for MUX configuration
  * @cmd_buffer: Buffer for SPI command transfers
- * @rx_buffer: Buffer for SPI data reception, aligned for DMA
- *
- * Private data structure for the ADS1262 ADC driver. Contains device-specific
- * information and buffers for SPI communication.
+ * @rx_buffer: Buffer for SPI data reception
  */
 struct ads1262_private {
 	struct spi_device *spi;
@@ -179,7 +149,8 @@ static const struct iio_chan_spec ads1262_channels[] = {
 	ADS1262_CHAN(8),
 	ADS1262_CHAN(9),
 	/* The channel at index 10 is AINCOM, which is the common ground
-	 * of the ADC. It is not a valid channel for the user. */
+	 * of the ADC. It is not a valid channel for the user.
+	 */
 
 	/* Temperature and Monitor channels */
 	ADS1262_TEMP_CHAN(11),	/* TEMP SENSOR */
@@ -221,7 +192,6 @@ static int ads1262_reg_write(void *context, unsigned int reg, unsigned int val)
 
 static int ads1262_reg_read(void *context, unsigned int reg)
 {
-	unsigned int val;
 	struct ads1262_private *priv = context;
 	struct spi_transfer reg_read_xfer = {
 		.tx_buf = priv->cmd_buffer,
@@ -239,8 +209,6 @@ static int ads1262_reg_read(void *context, unsigned int reg)
 	if (ret)
 		return ret;
 
-	val = priv->cmd_buffer[2];
-
 	return 0;
 }
 
@@ -250,7 +218,7 @@ static int ads1262_reset(struct iio_dev *indio_dev)
 
 	if (priv->reset_gpio) {
 		gpiod_set_value(priv->reset_gpio, 0);
-		udelay(200);
+		usleep_range(200, 300);
 		gpiod_set_value(priv->reset_gpio, 1);
 	} else {
 		return ads1262_write_cmd(priv, ADS1262_CMD_RESET);
@@ -268,7 +236,7 @@ static int ads1262_init(struct iio_dev *indio_dev)
 		return ret;
 
 	/* 10 milliseconds settling time for the ADC to stabilize */
-	fsleep(ADS1262_SETTLE_TIME_USECS);		
+	fsleep(ADS1262_SETTLE_TIME_USECS);
 
 	/* Clearing the RESET bit in the power register to detect ADC reset */
 	ret = ads1262_reg_write(priv, ADS1262_REG_POWER, ADS1262_INTREF_ENABLE);
@@ -284,24 +252,11 @@ static int ads1262_init(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	/* TODO: To be removed after testing
-	 * add the default channel that is read by the ADC on startup
-	 */
 	priv->prev_channel = priv->cmd_buffer[2];
 
 	return ret;
 }
 
-/**
- * ads1262_get_samp_freq - Get the current sampling frequency setting
- * @priv: Pointer to the ADS1262 private data structure
- * @val: Pointer to store the data rate value
- *
- * Reads the MODE2 register to get the current data rate setting.
- * The data rate is encoded in bits [4:0] of the register.
- *
- * Return: IIO_VAL_INT on success, negative error code on failure
- */
 static int ads1262_get_samp_freq(struct ads1262_private *priv, int *val)
 {
 	unsigned long samp_freq;
@@ -340,7 +295,8 @@ static int ads1262_read(struct ads1262_private *priv,
 		mux_value = (chan->channel << 4) | chan->channel2;
 	} else {
 		/* For single-ended channels, use the channel number on one end
-		 * and AINCOM (0x0A) on the other end */
+		 * and AINCOM (0x0A) on the other end
+		 */
 		mux_value = (chan->channel << 4) | 0x0A;
 	}
 
@@ -369,8 +325,8 @@ static int ads1262_read(struct ads1262_private *priv,
 }
 
 static int ads1262_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan,
-			   int *val, int *val2, long mask)
+			    struct iio_chan_spec const *chan,
+			    int *val, int *val2, long mask)
 {
 	struct ads1262_private *spi = iio_priv(indio_dev);
 	s64 temp;
@@ -408,6 +364,7 @@ static const struct iio_info ads1262_info = {
 static void ads1262_stop(void *ptr)
 {
 	struct ads1262_private *adc = ptr;
+
 	ads1262_write_cmd(adc, ADS1262_CMD_STOP1);
 }
 
@@ -425,9 +382,7 @@ static int ads1262_probe(struct spi_device *spi)
 	adc->spi = spi;
 
 	spi->mode = SPI_MODE_1;
-
 	spi->max_speed_hz = ADS1262_SPI_BUS_SPEED_SLOW;
-
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->dev.parent = &spi->dev;

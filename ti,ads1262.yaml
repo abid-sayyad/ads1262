@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/iio/adc/ti,ads1262.yaml#
@@ -38,7 +38,8 @@ properties:
     maximum: 7372800
     description: Maximum SPI clock frequency in Hz (7.3728 MHz)
 
-  spi-cpha: true
+  spi-cpha:
+    type: boolean
     description: Required for SPI mode 1 operation
 
   reset-gpios:
@@ -56,40 +57,70 @@ properties:
   '#size-cells':
     const: 0
 
+  '#io-channel-cells':
+    const: 1
+
   ti,pga-bypass:
     type: boolean
     description: |
       If true, bypass the PGA. If false or not specified, PGA is enabled.
 
   ti,data-rate:
-    description: ADC data rate in samples per second
-    enum: [2.5, 5, 10, 16.6, 20, 50, 60, 100, 400, 1200, 2400, 4800, 7200, 14400, 19200, 38400]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+    description: |
+      Data acquisition rate in samples per second
+      0: 2.5
+      1: 5
+      2: 10
+      3: 16.6
+      4: 20
+      5: 50
+      6: 60
+      7: 100
+      8: 400
+      9: 1200
+      10: 2400
+      11: 4800
+      12: 7200
+      13: 14400
+      14: 19200
+      15: 38400
 
 required:
   - compatible
   - reg
   - spi-cpha
+  - '#address-cells'
+  - '#size-cells'
+  - '#io-channel-cells'
+
+additionalProperties: false
 
 patternProperties:
-  "^channel@[0-10]$":
-    $ref: adc.yaml
+  "^channel@([0-9]|1[0-1])$":
     type: object
+    additionalProperties: false
     description: |
       Represents the external channels which are connected to the ADC.
-      Channels 0-9 are available for external signals, channel 10 is AINCOM.
+      Channels 0-9 are available for external signals, channel 10 is AINCOM,
+      and channel 11 is the internal temperature sensor.
 
     properties:
       reg:
         description: |
-          Channel number. It can have up to 10 channels numbered from 0 to 9.
+          Channel number. It can have up to 10 channels numbered from 0 to 9,
+          channel 10 is AINCOM, and channel 11 is the internal temperature sensor.
         items:
           - minimum: 0
-            maximum: 9
+            maximum: 11
 
       diff-channels:
         description: |
           List of two channel numbers for differential measurement.
           First number is positive input, second is negative input.
+          Not applicable for temperature sensor (channel 11).
         items:
           - minimum: 0
             maximum: 9
@@ -97,23 +128,27 @@ patternProperties:
             maximum: 9
 
       ti,gain:
-        description: PGA gain setting
-        enum: [1, 2, 4, 8, 16, 32]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 5
+        description: |
+          PGA gain setting. Not applicable for temperature sensor (channel 11).
+          0: 1 (default)
+          1: 2
+          2: 4
+          3: 8
+          4: 16
+          5: 32
 
     required:
       - reg
 
-    additionalProperties: false
-
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
-
-unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    #include <dt-bindings/iio/adc/ti,ads1262.h>
 
     spi {
       #address-cells = <1>;
@@ -127,10 +162,11 @@ examples:
         spi-cpha;
         reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
         ti,pga-bypass;
-        ti,data-rate = <38400>;
+        ti,data-rate = <15>; /* 38400 SPS */
 
         #address-cells = <1>;
         #size-cells = <0>;
+        #io-channel-cells = <1>;
 
         /* Single-ended channel */
         channel@0 {
@@ -141,7 +177,7 @@ examples:
         channel@1 {
           reg = <1>;
           diff-channels = <1 2>;
-          ti,gain = <4>;
+          ti,gain = <2>; /* Gain of 4 */
         };
 
         /* Temperature sensor */
