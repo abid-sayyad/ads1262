@@ -1,0 +1,11 @@
+config TI_ADS1262
+	tristate "Texas Instruments ADS1262 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Texas Instruments ADS1262
+	  32-bit ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ti-ads1262. 

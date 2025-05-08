@@ -29,17 +29,29 @@ properties:
   compatible:
     enum:
       - ti,ads1262
+      - ti,ads1263
 
   reg:
     maxItems: 1
     description: SPI chip select number
 
-  spi-max-frequency:
-    maximum: 7372800
-    description: Maximum SPI clock frequency in Hz (7.3728 MHz)
+  interrupts:
+    maxItems: 1
+    items:
+      - description: |
+          Data-Ready: multiplexed while data out. While SPI CS is low,
+          can be used to indicate the completion of a conversion.
+  
+  interrupt-names:
+    maxItems: 1
+    items:
+      - const: drdy
 
-  spi-cpha:
-    type: boolean
+  spi-max-frequency:
+    maximum: 8000000
+    description: Maximum SPI clock frequency in Hz (8 MHz)
+
+  spi-cpha: true
     description: Required for SPI mode 1 operation
 
   reset-gpios:

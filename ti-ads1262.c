@@ -5,16 +5,18 @@
  * Datasheet: https://www.ti.com/product/ADS1262
  */
 
-#include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
+#include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/math.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/unaligned.h>
+#include <linux/units.h>
 
-#include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/iio.h>
 #include <linux/iio/triggered_buffer.h>
 
 /* Commands */
@@ -47,8 +49,8 @@
 #define ADS1262_MAX_CHANNELS		11
 #define ADS1262_BITS_PER_SAMPLE		32
 #define ADS1262_CLK_RATE_HZ		7372800
-#define ADS1262_CLOCKS_TO_USECS(x)	\
-	(DIV_ROUND_UP((x) * MICROHZ_PER_HZ, ADS1262_CLK_RATE_HZ))
+// #define ADS1262_CLOCKS_TO_USECS(x)	\
+// 	(DIV_ROUND_UP((x) * MICROHZ_PER_HZ, ADS1262_CLK_RATE_HZ)) //Do this inline whenever using instead of makin it a macro
 #define ADS1262_VOLTAGE_INT_REF_uV	2500000
 #define ADS1262_TEMP_SENSITIVITY_uV_per_C 420
 
@@ -68,9 +70,6 @@
  * 1 status byte - 4 byte data (32 bit) - 1 byte checksum / CRC
  */
 #define ADS1262_SPI_RDATA_BUFFER_SIZE	6
-
-#define MILLI				1000
-
 /**
  * struct ads1262_private - ADS1262 ADC private data structure
  * @spi: SPI device structure
@@ -83,8 +82,8 @@ struct ads1262_private {
 	struct spi_device *spi;
 	struct gpio_desc *reset_gpio;
 	u8 prev_channel;
-	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE];
-	u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+	u8 cmd_buffer[ADS1262_SPI_CMD_BUFFER_SIZE] __aligned(IIO_DMA_MINALIGN);
+	u8 rx_buffer[ADS1262_SPI_RDATA_BUFFER_SIZE];
 };
 
 #define ADS1262_CHAN(index)						\

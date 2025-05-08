@@ -1,0 +1,1 @@
+obj-$(CONFIG_TI_ADS1262) += ti-ads1262.o 
