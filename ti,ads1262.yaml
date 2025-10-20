@@ -38,67 +38,119 @@ properties:
   interrupts:
     maxItems: 1
     items:
-      - description: |
-          Data-Ready: multiplexed while data out. While SPI CS is low,
+      - description:
+          Data-Ready pin is multiplexed while data out. While SPI CS is low,
           can be used to indicate the completion of a conversion.
   
   interrupt-names:
     maxItems: 1
     items:
       - const: drdy
-
-  spi-max-frequency:
-    maximum: 8000000
-    description: Maximum SPI clock frequency in Hz (8 MHz)
-
-  spi-cpha: true
-    description: Required for SPI mode 1 operation
-
-  reset-gpios:
-    maxItems: 1
-    description: GPIO specifier for the reset pin (active low)
-
-  vref-supply:
-    description: |
-      The regulator supply for ADC reference voltage. If not specified,
-      the internal 2.5V reference will be used.
-
+  
   '#address-cells':
     const: 1
 
   '#size-cells':
     const: 0
 
+  spi-max-frequency:
+    maximum: 8000000
+    description: Maximum SPI clock frequency in Hz (8 MHz)
+
+  spi-cpha: true
+
+  gpio-controller:
+  description: Marks the device node as a GPIO controller.
+
+  '#gpio-cells':
+    const: 2
+    description:
+      The first cell is the GPIO number and the second cell specifies
+      GPIO flags, as defined in <dt-bindings/gpio/gpio.h>.
+
+  refin1p-supply:
+    description: REFIN+ supply that can be used as reference for conversion.
+
+  refin1n-supply:
+    description: REFIN- supply that can be used as reference for conversion.
+
+  refin2p-supply:
+    description: REFIN2+ supply that can be used as reference for conversion.
+
+  refin2n-supply:
+    description: REFIN2- supply that can be used as reference for conversion.
+  
+  refin3p-supply:
+    description: REFIN3+ supply that can be used as reference for conversion.
+
+  refin3n-supply:
+    description: REFIN3- supply that can be used as reference for conversion.
+
+  clocks:
+    maxItems: 1
+    description:
+      Optional external clock source. Can include one clock source; external
+      clock or external crystal.
+
+  clock-names:
+    enum:
+      - ext-clk
+      - xtal
+
+  '#clock-cells':
+    const: 0
+
+  drdy-gpios:
+    maxItems: 1
+    description:
+      Using the DRDY pin is optional but recommended. This pin functions 
+      as a GPIO interrupt that indicates when new data is available on MISO.
+      While the same information can be obtained by polling the device 
+      registers, doing so requires additional SPI transactions and results
+      in extra DRDY interrupt events.
+  
+  reset-gpios:
+    maxItems: 1
+    description:
+      This gpio is a manual reset signal to the ADC (ACTIVE_LOW). One can trigger
+      this manual rest by setting this gpio to low.
+    
+  start-gpios:
+    maxItems: 1
+    description:
+     This gpio is used for manually starting conversation on the ADC.
+     This method bypasses serial communication between the two devices.
+  
+  aincom-supply:
+    description:
+      AINCOM voltage supply. Analog inputs AINx are referenced to this input
+      when configured for pseudo-differential operation.
+  
+  avdd-supply:
+    description:
+      This is the positive input supply for the ADC's analog circuitry.
+  
+  avss-supply:
+    description:
+      This is the negative input supply for the ADC's analog circuitry.
+
+  dvdd-supply:
+    description:
+      This is the positive input supply for the ADC's digital circuitry.
+
   '#io-channel-cells':
     const: 1
 
   ti,pga-bypass:
     type: boolean
-    description: |
+    description:
       If true, bypass the PGA. If false or not specified, PGA is enabled.
 
   ti,data-rate:
     $ref: /schemas/types.yaml#/definitions/uint32
-    minimum: 0
-    maximum: 15
-    description: |
+    enum: [2.5, 16.6, 20, 50, 60, 100, 400, 1200, 2400, 4800, 7200, 14400, 19200, 38400]
+    description:
       Data acquisition rate in samples per second
-      0: 2.5
-      1: 5
-      2: 10
-      3: 16.6
-      4: 20
-      5: 50
-      6: 60
-      7: 100
-      8: 400
-      9: 1200
-      10: 2400
-      11: 4800
-      12: 7200
-      13: 14400
-      14: 19200
-      15: 38400
 
 required:
   - compatible
@@ -114,14 +166,14 @@ patternProperties:
   "^channel@([0-9]|1[0-1])$":
     type: object
     additionalProperties: false
-    description: |
+    description:
       Represents the external channels which are connected to the ADC.
       Channels 0-9 are available for external signals, channel 10 is AINCOM,
       and channel 11 is the internal temperature sensor.
 
     properties:
       reg:
-        description: |
+        description:
           Channel number. It can have up to 10 channels numbered from 0 to 9,
           channel 10 is AINCOM, and channel 11 is the internal temperature sensor.
         items:
@@ -129,7 +181,7 @@ patternProperties:
             maximum: 11
 
       diff-channels:
-        description: |
+        description:
           List of two channel numbers for differential measurement.
           First number is positive input, second is negative input.
           Not applicable for temperature sensor (channel 11).
@@ -141,16 +193,10 @@ patternProperties:
 
       ti,gain:
         $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 0
-        maximum: 5
-        description: |
+        enum : [1, 2, 4, 8, 16, 32]
+        default: 1
+        description:
           PGA gain setting. Not applicable for temperature sensor (channel 11).
-          0: 1 (default)
-          1: 2
-          2: 4
-          3: 8
-          4: 16
-          5: 32
 
     required:
       - reg
@@ -166,7 +212,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      ads1262: adc@0 {
+      adc@0 {
         compatible = "ti,ads1262";
         reg = <0>;
         spi-max-frequency = <7372800>;
